@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "plugins": ["react", "typescript", "import"],
+  "env": { "browser": true, "node": true, "es2024": true },
+  "rules": {
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "eqeqeq": "error",
+    "typescript/no-explicit-any": "error",
+    "react/react-in-jsx-scope": "off",
+    "import/no-unassigned-import": "off",
+    "eslint/no-await-in-loop": "off",
+    "react/exhaustive-effect-dependencies": "off"
+  },
+  "overrides": [{ "files": ["**/scripts/**"], "rules": { "no-console": "off" } }],
+  "ignorePatterns": [
+    "node_modules",
+    "dist",
+    ".next",
+    ".turbo",
+    ".output",
+    ".wxt",
+    "coverage",
+    "playwright-report",
+    "test-results",
+    "generated",
+    "pnpm-lock.yaml"
+  ]
+}

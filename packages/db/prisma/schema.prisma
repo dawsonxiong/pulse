@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TagKind {
+  language
+  tool
+  topic
+}
+
+model Source {
+  id             String    @id @default(uuid()) @db.Uuid
+  slug           String    @unique
+  name           String
+  siteUrl        String
+  rssUrl         String
+  authorityScore Float     @default(0.7)
+  active         Boolean   @default(true)
+  lastFetchedAt  DateTime?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  posts      Post[]
+  sourceTags SourceTag[]
+
+  @@map("sources")
+}
+
+model Post {
+  id           String   @id @default(uuid()) @db.Uuid
+  sourceId     String   @db.Uuid
+  url          String
+  canonicalUrl String   @unique
+  title        String
+  author       String?
+  excerpt      String?
+  imageUrl     String?
+  publishedAt  DateTime
+  createdAt    DateTime @default(now())
+
+  source             Source      @relation(fields: [sourceId], references: [id])
+  storyPosts         StoryPost[]
+  postTags           PostTag[]
+  representativeOf   Story[]     @relation("RepresentativePost")
+
+  @@index([publishedAt])
+  @@index([sourceId])
+  @@map("posts")
+}
+
+model Story {
+  id                   String   @id @default(uuid()) @db.Uuid
+  representativePostId String   @db.Uuid
+  publishedAt          DateTime
+  sourceCount          Int      @default(1)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  representativePost Post        @relation("RepresentativePost", fields: [representativePostId], references: [id])
+  storyPosts         StoryPost[]
+
+  @@index([publishedAt])
+  @@map("stories")
+}
+
+model StoryPost {
+  storyId String @db.Uuid
+  postId  String @db.Uuid
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  post  Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, postId])
+  @@unique([postId])
+  @@map("story_posts")
+}
+
+model Tag {
+  slug      String   @id
+  label     String
+  kind      TagKind
+  createdAt DateTime @default(now())
+
+  sourceTags SourceTag[]
+  postTags   PostTag[]
+
+  @@map("tags")
+}
+
+model SourceTag {
+  sourceId String @db.Uuid
+  tagSlug  String
+
+  source Source @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagSlug], references: [slug], onDelete: Cascade)
+
+  @@id([sourceId, tagSlug])
+  @@map("source_tags")
+}
+
+model PostTag {
+  postId  String @db.Uuid
+  tagSlug String
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagSlug], references: [slug], onDelete: Cascade)
+
+  @@id([postId, tagSlug])
+  @@map("post_tags")
+}

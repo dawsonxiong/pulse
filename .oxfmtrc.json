@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": [
+    ".next",
+    "node_modules",
+    "generated",
+    "coverage",
+    "pnpm-lock.yaml",
+    ".output",
+    ".wxt",
+    "*.md",
+    "*.yaml",
+    "*.yml"
+  ]
+}

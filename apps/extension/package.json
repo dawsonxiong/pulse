@@ -1,0 +1,33 @@
+{
+  "name": "@pulse/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "typecheck": "wxt prepare && tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
+    "@pulse/shared": "workspace:*",
+    "@pulse/ui": "workspace:*",
+    "lucide-react": "^1.40.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4",
+    "@types/chrome": "^0.1.4",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@wxt-dev/module-react": "^1.1.5",
+    "tailwindcss": "^4",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.6",
+    "wxt": "^0.20.11"
+  }
+}
