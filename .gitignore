@@ -26,3 +26,5 @@ test-results
 
 # Prisma generated client (migrations ARE tracked)
 packages/db/generated/
+.vercel
+.env*

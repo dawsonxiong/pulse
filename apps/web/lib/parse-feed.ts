@@ -13,7 +13,7 @@ const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
   textNodeName: "#text",
-  isArray: (name) => ["item", "entry", "link"].includes(name),
+  isArray: (name) => ["item", "entry", "link", "enclosure"].includes(name),
 });
 
 function asText(value: unknown): string | null {
@@ -26,9 +26,18 @@ function asText(value: unknown): string | null {
   return null;
 }
 
+function decodeEntities(value: string): string {
+  return value
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&amp;/gi, "&");
+}
+
 function stripHtml(value: string | null): string | null {
   if (!value) return null;
-  const text = value
+  const text = decodeEntities(value)
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -60,30 +69,141 @@ function linkHref(links: unknown, fallback?: string | null): string | null {
 function attrUrl(value: unknown): string | null {
   if (!value) return null;
   if (Array.isArray(value)) return attrUrl(value[0]);
-  if (typeof value === "string") return value.startsWith("http") ? value : null;
+  if (typeof value === "string")
+    return value.startsWith("http") || value.startsWith("//") ? value : null;
   if (typeof value !== "object") return null;
   const record = value as { "@_url"?: string; "@_href"?: string };
   return record["@_url"] ?? record["@_href"] ?? null;
 }
 
+function isImagePath(url: string): boolean {
+  try {
+    const path = new URL(url, "https://example.com").pathname.toLowerCase();
+    return /\.(avif|gif|jpe?g|png|webp)$/.test(path);
+  } catch {
+    return /\.(avif|gif|jpe?g|png|webp)(\?|$)/i.test(url);
+  }
+}
+
+function usableImageUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const url = decodeEntities(raw.trim());
+  if (!url) return null;
+  const lower = url.toLowerCase();
+  if (lower.startsWith("data:")) return null;
+  if (lower.includes("1x1") || lower.includes("pixel.gif") || lower.includes("/spacer")) {
+    return null;
+  }
+  if (url.startsWith("http") || url.startsWith("//")) return url;
+  return null;
+}
+
 function imageFromHtml(html: string | null): string | null {
   if (!html) return null;
-  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  const src = match?.[1];
-  return src && /^https?:\/\//i.test(src) ? src : null;
+  const decoded = decodeEntities(html);
+  const img = decoded.match(/<img[^>]+src=["']([^"']+)["']/i);
+  const fromSrc = usableImageUrl(img?.[1]);
+  if (fromSrc) return fromSrc;
+  const srcset = decoded.match(/<img[^>]+srcset=["']([^"']+)["']/i);
+  const firstSrcset = srcset?.[1]?.split(",")[0]?.trim().split(/\s+/)[0];
+  return usableImageUrl(firstSrcset);
+}
+
+function collectMarkup(value: unknown, depth = 0): string {
+  if (depth > 8 || value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return "";
+  if (Array.isArray(value)) return value.map((entry) => collectMarkup(entry, depth + 1)).join(" ");
+  if (typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  const src = record["@_src"];
+  const parts: string[] = [];
+  if (typeof src === "string" && src.length > 0) {
+    parts.push(`<img src="${src}" />`);
+  }
+  for (const [key, nested] of Object.entries(record)) {
+    if (key.startsWith("@_")) continue;
+    parts.push(collectMarkup(nested, depth + 1));
+  }
+  return parts.join(" ");
+}
+
+function enclosureUrl(item: Record<string, unknown>): string | null {
+  const raw = item.enclosure;
+  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  for (const entry of list) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as { "@_url"?: string; "@_type"?: string };
+    const url = record["@_url"];
+    const type = record["@_type"] ?? "";
+    if (typeof url === "string" && (type.startsWith("image/") || isImagePath(url))) {
+      return url;
+    }
+  }
+  return null;
+}
+
+function enclosureLink(links: unknown): string | null {
+  if (!Array.isArray(links)) return null;
+  for (const link of links) {
+    if (!link || typeof link !== "object") continue;
+    const rel = (link as { "@_rel"?: string })["@_rel"];
+    const type = (link as { "@_type"?: string })["@_type"] ?? "";
+    const href = (link as { "@_href"?: string })["@_href"];
+    if (
+      rel === "enclosure" &&
+      typeof href === "string" &&
+      (type.startsWith("image/") || isImagePath(href))
+    ) {
+      return href;
+    }
+  }
+  return null;
+}
+
+function imageElement(value: unknown): string | null {
+  if (typeof value === "string") return usableImageUrl(value);
+  if (!value || typeof value !== "object") return null;
+  const record = value as { url?: unknown; "@_url"?: string; "#text"?: unknown };
+  return usableImageUrl(asText(record.url) ?? record["@_url"] ?? asText(record["#text"]));
 }
 
 function imageFromItem(item: Record<string, unknown>): string | null {
-  const enclosure = item.enclosure as { "@_url"?: string; "@_type"?: string } | undefined;
-  if (enclosure?.["@_type"]?.startsWith("image/") && enclosure["@_url"]) {
-    return enclosure["@_url"];
-  }
+  const mediaGroup = item["media:group"];
+  const group =
+    mediaGroup && typeof mediaGroup === "object" ? (mediaGroup as Record<string, unknown>) : null;
+
   return (
+    enclosureUrl(item) ??
+    enclosureLink(item.link) ??
     attrUrl(item["media:thumbnail"]) ??
     attrUrl(item["media:content"]) ??
+    (group ? (attrUrl(group["media:thumbnail"]) ?? attrUrl(group["media:content"])) : null) ??
     attrUrl(item["itunes:image"]) ??
-    imageFromHtml(asText(item["content:encoded"]) ?? asText(item.description))
+    imageElement(item.image) ??
+    imageFromHtml(asText(item["content:encoded"])) ??
+    imageFromHtml(asText(item.content)) ??
+    imageFromHtml(asText(item.description)) ??
+    imageFromHtml(asText(item.summary)) ??
+    imageFromHtml(collectMarkup(item["content:encoded"])) ??
+    imageFromHtml(collectMarkup(item.content))
   );
+}
+
+export function ogImageFromHtml(html: string): string | null {
+  const slice = html.slice(0, 200_000);
+  const patterns = [
+    /<meta[^>]+property=["']og:image(?::secure_url|:url)?["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url|:url)?["'][^>]*>/i,
+    /<meta[^>]+name=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image(?::src)?["'][^>]*>/i,
+  ];
+  for (const pattern of patterns) {
+    const match = slice.match(pattern);
+    const url = usableImageUrl(match?.[1]);
+    if (url) return url;
+  }
+  return null;
 }
 
 export function parseFeedXml(xml: string): ParsedFeedItem[] {

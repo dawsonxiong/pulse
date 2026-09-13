@@ -33,3 +33,8 @@ test("GET /api/cron/ingest without bearer is 401", async ({ request }) => {
   const response = await request.get("/api/cron/ingest");
   expect(response.status()).toBe(401);
 });
+
+test("GET /api/cron/icons without bearer is 401", async ({ request }) => {
+  const response = await request.get("/api/cron/icons");
+  expect(response.status()).toBe(401);
+});

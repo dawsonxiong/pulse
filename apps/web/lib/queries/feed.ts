@@ -26,7 +26,13 @@ type PostRow = {
   excerpt: string | null;
   imageUrl: string | null;
   publishedAt: Date;
-  source: { id: string; name: string; siteUrl: string; authorityScore: number };
+  source: {
+    id: string;
+    name: string;
+    siteUrl: string;
+    iconUrl: string | null;
+    authorityScore: number;
+  };
   postTags: { tagSlug: string }[];
 };
 
@@ -43,6 +49,7 @@ function toFeedPost(post: PostRow): FeedPost {
       id: post.source.id,
       name: post.source.name,
       siteUrl: post.source.siteUrl,
+      iconUrl: post.source.iconUrl,
     },
   };
 }

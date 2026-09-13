@@ -7,10 +7,13 @@ import {
   tagsFromTitle,
   type ClusterCandidate,
 } from "@pulse/shared";
-import { parseFeedXml } from "./parse-feed";
+import { ogImageFromHtml, parseFeedXml } from "./parse-feed";
 
 const FEED_TIMEOUT_MS = 8_000;
-const GLOBAL_CAP_MS = 25_000;
+const OG_TIMEOUT_MS = 4_000;
+const OG_CONCURRENCY = 6;
+const MAX_OG_FETCHES = 40;
+const GLOBAL_CAP_MS = 50_000;
 const MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const CLUSTER_WINDOW_MS = 48 * 60 * 60 * 1000;
 
@@ -29,6 +32,43 @@ async function fetchText(url: string): Promise<string> {
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.text();
+}
+
+async function fetchOgImage(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(OG_TIMEOUT_MS),
+      headers: {
+        Accept: "text/html,application/xhtml+xml",
+        "User-Agent": "PulseIngest/0.1 (+https://github.com/pulse)",
+      },
+      redirect: "follow",
+    });
+    if (!response.ok) return null;
+    return ogImageFromHtml(await response.text());
+  } catch {
+    return null;
+  }
+}
+
+async function mapPool<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  let next = 0;
+  async function worker(): Promise<void> {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      const item = items[index];
+      if (item === undefined) return;
+      await fn(item);
+    }
+  }
+  const workers = Math.min(concurrency, items.length);
+  if (workers === 0) return;
+  await Promise.all(Array.from({ length: workers }, () => worker()));
 }
 
 function pickRepresentative(
@@ -78,12 +118,14 @@ export async function ingestFeeds(now = new Date()): Promise<IngestResult> {
   const sources = await prisma.source.findMany({
     where: { active: true },
     include: { sourceTags: true },
+    orderBy: { lastFetchedAt: { sort: "asc", nulls: "first" } },
   });
 
   let fetched = 0;
   let failed = 0;
   let inserted = 0;
   let clustered = 0;
+  let ogFetches = 0;
 
   for (const source of sources) {
     if (Date.now() - started > GLOBAL_CAP_MS) break;
@@ -105,6 +147,51 @@ export async function ingestFeeds(now = new Date()): Promise<IngestResult> {
 
       const sourceTagSlugs = source.sourceTags.map((row) => row.tagSlug);
 
+      const pendingOg: { url: string; assign: (imageUrl: string) => void }[] = [];
+      const ogTargets: { item: (typeof items)[number]; absolute: string; canonical: string }[] = [];
+
+      for (const item of items) {
+        if (item.imageUrl) continue;
+        const absolute = resolveHttpUrl(item.url, source.rssUrl) ?? resolveHttpUrl(item.url);
+        if (!absolute) continue;
+        const canonical = canonicalizeUrl(absolute);
+        if (!canonical) continue;
+        const publishedAt = item.publishedAt ?? now;
+        if (now.getTime() - publishedAt.getTime() > MAX_AGE_MS) continue;
+        ogTargets.push({ item, absolute, canonical });
+      }
+
+      const alreadyImaged = new Set(
+        (
+          await prisma.post.findMany({
+            where: {
+              canonicalUrl: { in: ogTargets.map((row) => row.canonical) },
+              imageUrl: { not: null },
+            },
+            select: { canonicalUrl: true },
+          })
+        ).map((row) => row.canonicalUrl),
+      );
+
+      for (const target of ogTargets) {
+        if (alreadyImaged.has(target.canonical)) continue;
+        pendingOg.push({
+          url: target.absolute,
+          assign: (imageUrl) => {
+            target.item.imageUrl = imageUrl;
+          },
+        });
+      }
+
+      await mapPool(pendingOg, OG_CONCURRENCY, async (job) => {
+        if (ogFetches >= MAX_OG_FETCHES) return;
+        if (Date.now() - started > GLOBAL_CAP_MS) return;
+        ogFetches += 1;
+        const og = await fetchOgImage(job.url);
+        const resolved = og ? resolveHttpUrl(og, job.url) : null;
+        if (resolved) job.assign(resolved);
+      });
+
       for (const item of items) {
         const absolute = resolveHttpUrl(item.url, source.rssUrl) ?? resolveHttpUrl(item.url);
         if (!absolute) continue;
@@ -115,9 +202,14 @@ export async function ingestFeeds(now = new Date()): Promise<IngestResult> {
 
         const existing = await prisma.post.findUnique({
           where: { canonicalUrl: canonical },
-          include: { storyPosts: true },
         });
-        if (existing) continue;
+        const imageUrl = item.imageUrl ? resolveHttpUrl(item.imageUrl, source.rssUrl) : null;
+        if (existing) {
+          if (!existing.imageUrl && imageUrl) {
+            await prisma.post.update({ where: { id: existing.id }, data: { imageUrl } });
+          }
+          continue;
+        }
 
         const titleTags = tagsFromTitle(item.title);
         const tagSlugs = [...new Set([...sourceTagSlugs, ...titleTags])].filter((slug) =>
@@ -132,7 +224,7 @@ export async function ingestFeeds(now = new Date()): Promise<IngestResult> {
             title: item.title,
             author: item.author,
             excerpt: item.excerpt,
-            imageUrl: item.imageUrl ? resolveHttpUrl(item.imageUrl, source.rssUrl) : null,
+            imageUrl,
             publishedAt,
             postTags: {
               create: tagSlugs.map((tagSlug) => ({ tagSlug })),

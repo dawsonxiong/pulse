@@ -13,6 +13,7 @@ const feedPostSchema: z.ZodType<FeedPost> = z.object({
     id: z.string(),
     name: z.string(),
     siteUrl: z.string(),
+    iconUrl: z.string().nullable().default(null),
   }),
 });
 
@@ -66,7 +67,7 @@ function storageArea(): chrome.storage.StorageArea | null {
   return globalThis.chrome?.storage?.local ?? null;
 }
 
-export const FEED_CACHE_VERSION = 2;
+export const FEED_CACHE_VERSION = 4;
 
 export async function loadState(): Promise<LocalState> {
   const area = storageArea();

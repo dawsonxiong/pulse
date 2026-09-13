@@ -11,7 +11,8 @@
 - Personalized feed of master-story cards (original titles, author + source, “N sources” expander)
 - Reading list and up/down votes in `chrome.storage.local`
 - Instant paint from cache; revalidate in the background
-- Curated RSS (~40 sources) polled on a 15-minute Vercel cron
+- Curated RSS (~40 sources) polled on a Vercel cron (daily on Hobby; every 15 minutes on Pro)
+- Source icons from each origin’s favicon / apple-touch-icon, refreshed daily
 - Simple clustering: canonical URL, or title Jaccard ≥ 0.72 with ≥ 2 overlapping tokens in a 48-hour window
 
 **Out of scope for v1:** Squads, DevCards, Clickbait Shield / title rewriting, LLM summaries, pgvector, Rust ingest, GraphQL, Plus paywall, ads, Recruiter, email digest, Firefox/Edge, Chrome Web Store, Better Auth.
@@ -22,7 +23,7 @@
 |---|---|
 | Monorepo | pnpm + Turborepo |
 | Web / API | Next.js 16 App Router, API routes, Vercel |
-| Database | Neon Postgres, Prisma 7 TS client |
+| Database | Supabase Postgres, Prisma 7 TS client |
 | Extension | WXT + React + Tailwind v4 |
 | Shared | Pure TypeScript (`@pulse/shared`) |
 | Auth | None in v1 (anonymous + chrome.storage) |
@@ -34,7 +35,7 @@
 
 New tab (cached SPA) → `GET /api/feed?tags=` → ranked `Story` rows with nested original-title posts.
 
-Cron `GET /api/cron/ingest` (bearer) polls RSS, upserts posts on `canonicalUrl`, clusters into stories.
+Cron `GET /api/cron/ingest` (bearer) polls RSS, upserts posts on `canonicalUrl`, clusters into stories. Cron `GET /api/cron/icons` (bearer, daily) refreshes `Source.iconUrl` from each site’s own icons.
 
 ## Product rules
 
@@ -50,7 +51,7 @@ score = recencyDecay(publishedAt)   # 36h half-life
       * tagMatch(storyTags, userTags)  # Jaccard; zero overlap still scores 0.15
       * sourceAuthority
       * (1 + log1p(upvotes))
-      * downvoteDamp                 # 1 in v1; hides are local
+      * downvoteDamp                 # 1 in v1; downvotes toggle and do not hide
 ```
 
 Pass `now` in. Do not call `Date.now()` inside the scorer.
@@ -65,7 +66,7 @@ Browser tools cannot drive `chrome://extensions`. After `pnpm --filter @pulse/ex
 4. Open a new tab
 5. Complete onboarding (5+ tags)
 6. Confirm: cached feed paints, then live data (or fixture if API is down)
-7. Confirm: original titles, cluster expander, bookmark → Reading list, downvote hides the card
+7. Confirm: original titles, cluster expander, bookmark → Reading list, like/dislike toggle (click again to clear)
 
 ## Verification
 

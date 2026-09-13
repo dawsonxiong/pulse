@@ -8,12 +8,10 @@ export default function HomePage() {
       <header className="flex flex-col gap-4">
         <Wordmark />
         <h1 className="font-heading text-4xl font-medium tracking-tight text-balance">
-          Developer news, clustered, on every new tab.
+          Keep up to date with the latest dev news.
         </h1>
         <p className="max-w-xl text-muted-foreground text-pretty">
-          Pulse replaces Chrome&apos;s new tab with a high-signal feed of engineering posts.
-          Duplicate coverage of the same event collapses into one story card. Original titles stay
-          intact — we never rewrite a headline.
+          Pulse replaces Chrome&apos;s new tab with a high-signal feed of dev posts.
         </p>
       </header>
 

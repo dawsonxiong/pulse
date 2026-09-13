@@ -7,7 +7,7 @@ function iso(hoursAgo: number, now = new Date("2026-09-02T15:00:00.000Z")): stri
 }
 
 function source(id: string, name: string, siteUrl: string): FeedSource {
-  return { id, name, siteUrl };
+  return { id, name, siteUrl, iconUrl: null };
 }
 
 function post(input: {

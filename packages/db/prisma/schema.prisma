@@ -23,6 +23,8 @@ model Source {
   active         Boolean   @default(true)
   lastFetchedAt  DateTime?
   lastError      String?
+  iconUrl        String?
+  iconFetchedAt  DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

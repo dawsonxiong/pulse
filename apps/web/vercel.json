@@ -2,7 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/ingest",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/icons",
+      "schedule": "0 8 * * *"
     }
   ]
 }

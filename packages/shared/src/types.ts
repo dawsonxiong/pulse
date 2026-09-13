@@ -10,6 +10,7 @@ export type FeedSource = {
   id: string;
   name: string;
   siteUrl: string;
+  iconUrl: string | null;
 };
 
 export type FeedPost = {

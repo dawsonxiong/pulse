@@ -16,6 +16,7 @@ import {
 import { cn } from "@pulse/ui/lib/utils";
 import { Bookmark, ThumbsDown, ThumbsUp } from "lucide-react";
 import { relativeTime } from "../lib/time";
+import { SourceIcon } from "./source-icon";
 import { Thumbnail } from "./thumbnail";
 
 type StoryCardProps = {
@@ -31,6 +32,9 @@ function storyImage(story: FeedStory): string | null {
     story.representative.imageUrl ?? story.posts.find((post) => post.imageUrl)?.imageUrl ?? null
   );
 }
+
+const actionButtonClass =
+  "transition-none hover:bg-muted hover:text-foreground dark:hover:bg-muted active:translate-y-0 aria-pressed:bg-muted aria-pressed:text-primary";
 
 export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }: StoryCardProps) {
   const extra = story.posts.filter((post) => post.id !== story.representative.id);
@@ -50,10 +54,16 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
         </CardHeader>
       </a>
       <CardContent className="flex flex-1 flex-col gap-2">
-        <CardDescription>
-          {story.representative.source.name}
-          <span aria-hidden="true"> · </span>
-          {relativeTime(story.representative.publishedAt)}
+        <CardDescription className="flex items-center gap-1.5">
+          <SourceIcon
+            src={story.representative.source.iconUrl}
+            label={story.representative.source.name}
+          />
+          <span className="min-w-0 truncate">
+            {story.representative.source.name}
+            <span aria-hidden="true"> · </span>
+            {relativeTime(story.representative.publishedAt)}
+          </span>
         </CardDescription>
         {clustered ? (
           <Collapsible>
@@ -90,7 +100,7 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
           size="icon-xs"
           aria-label="Upvote"
           aria-pressed={vote === "up"}
-          className="aria-pressed:bg-muted aria-pressed:text-primary"
+          className={actionButtonClass}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -104,7 +114,7 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
           size="icon-xs"
           aria-label="Downvote"
           aria-pressed={vote === "down"}
-          className="aria-pressed:bg-muted aria-pressed:text-primary"
+          className={actionButtonClass}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -118,7 +128,7 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
           size="icon-xs"
           aria-label="Bookmark"
           aria-pressed={bookmarked}
-          className="aria-pressed:bg-muted aria-pressed:text-primary"
+          className={actionButtonClass}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();

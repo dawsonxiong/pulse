@@ -36,7 +36,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       '@pulse/ui':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../../packages/ui
       lucide-react:
         specifier: ^1.40.0
@@ -88,7 +88,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       '@pulse/ui':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../../packages/ui
       '@upstash/ratelimit':
         specifier: ^2.0.8

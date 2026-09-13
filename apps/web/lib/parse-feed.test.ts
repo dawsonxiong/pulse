@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseFeedXml } from "./parse-feed";
+import { ogImageFromHtml, parseFeedXml } from "./parse-feed";
 
 const rss = `<?xml version="1.0"?>
 <rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -16,6 +16,17 @@ const rss = `<?xml version="1.0"?>
   </channel>
 </rss>`;
 
+const encodedHtmlRss = `<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>Encoded image</title>
+      <link>https://example.com/post</link>
+      <description>&lt;p&gt;Hello&lt;/p&gt;&lt;img src=&quot;https://cdn.example.com/hero.png&quot; /&gt;</description>
+    </item>
+  </channel>
+</rss>`;
+
 describe("parseFeedXml", () => {
   it("keeps the original title and link", () => {
     const items = parseFeedXml(rss);
@@ -23,5 +34,19 @@ describe("parseFeedXml", () => {
     expect(items[0]?.title).toBe("Announcing Rust 1.81.0");
     expect(items[0]?.url).toContain("blog.rust-lang.org");
     expect(items[0]?.imageUrl).toContain("rust-social-wide");
+  });
+
+  it("reads an image from entity-encoded HTML in description", () => {
+    const items = parseFeedXml(encodedHtmlRss);
+    expect(items[0]?.imageUrl).toBe("https://cdn.example.com/hero.png");
+  });
+});
+
+describe("ogImageFromHtml", () => {
+  it("reads og:image regardless of attribute order", () => {
+    const html = `<html><head>
+      <meta content="https://storage.googleapis.com/blog/hero.jpg" property="og:image" />
+    </head></html>`;
+    expect(ogImageFromHtml(html)).toBe("https://storage.googleapis.com/blog/hero.jpg");
   });
 });
