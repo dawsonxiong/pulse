@@ -1,3 +1,4 @@
+import { Toaster } from "@pulse/ui/components/sonner";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "../../components/app";
@@ -9,5 +10,6 @@ if (!root) throw new Error("missing #root");
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <App />
+    <Toaster />
   </React.StrictMode>,
 );

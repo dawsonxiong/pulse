@@ -57,6 +57,7 @@ export const localStateSchema = z.object({
     .nullable()
     .default(null),
   feedCacheVersion: z.number().default(0),
+  sort: z.enum(["for-you", "latest"]).default("for-you"),
 });
 
 export type LocalState = z.infer<typeof localStateSchema>;
@@ -67,7 +68,7 @@ function storageArea(): chrome.storage.StorageArea | null {
   return globalThis.chrome?.storage?.local ?? null;
 }
 
-export const FEED_CACHE_VERSION = 4;
+export const FEED_CACHE_VERSION = 5;
 
 export async function loadState(): Promise<LocalState> {
   const area = storageArea();

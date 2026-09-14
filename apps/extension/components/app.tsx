@@ -1,4 +1,6 @@
 import { rankStories, TAG_BY_SLUG, type FeedStory, type RankableStory } from "@pulse/shared";
+import { Button } from "@pulse/ui/components/button";
+import { toast } from "@pulse/ui/components/sonner";
 import { useEffect, useMemo, useState } from "react";
 import { fetchFeed } from "../lib/api";
 import { cachedOrFixture, loadState, saveState, type LocalState } from "../lib/storage";
@@ -65,7 +67,9 @@ export function App() {
           return next;
         });
       })
-      .catch(() => {});
+      .catch(() => {
+        toast.error("Couldn't refresh the feed");
+      });
     return () => {
       cancelled = true;
     };
@@ -90,6 +94,11 @@ export function App() {
     return rankStories(items, state.tags, new Date());
   }, [stories, state]);
 
+  const ordered = useMemo(() => {
+    if (!state || state.sort === "for-you") return ranked;
+    return [...ranked].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+  }, [ranked, state]);
+
   if (!state) {
     return (
       <div className="flex min-h-full items-center justify-center text-sm text-muted-foreground">
@@ -111,8 +120,10 @@ export function App() {
         }}
         onContinue={() => {
           if (state.tags.length < 5) return;
+          const updating = editingTags;
           setEditingTags(false);
           void commit({ ...state, onboarded: true });
+          if (updating) toast.success("Tags updated");
         }}
       />
     );
@@ -122,7 +133,7 @@ export function App() {
     const base =
       view === "reading-list"
         ? state.bookmarks.map((item) => item.story)
-        : ranked.map((item) => item.story);
+        : ordered.map((item) => item.story);
     if (view !== "feed" || !activeTag) return base;
     return base.filter((story) => story.tags.includes(activeTag));
   })();
@@ -145,15 +156,39 @@ export function App() {
         }}
       />
       <main className="flex min-w-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
-        <h1 className="font-heading text-lg font-medium tracking-tight">
-          {feedHeading(view, activeTag)}
-        </h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="font-heading text-lg font-medium tracking-tight">
+            {feedHeading(view, activeTag)}
+          </h1>
+          {view === "feed" ? (
+            <div className="flex rounded-lg border border-border p-0.5">
+              <Button
+                size="xs"
+                variant={state.sort === "for-you" ? "secondary" : "ghost"}
+                className="transition-none active:translate-y-0 active:not-aria-[haspopup]:translate-y-0"
+                aria-pressed={state.sort === "for-you"}
+                onClick={() => void commit({ ...state, sort: "for-you" })}
+              >
+                For you
+              </Button>
+              <Button
+                size="xs"
+                variant={state.sort === "latest" ? "secondary" : "ghost"}
+                className="transition-none active:translate-y-0 active:not-aria-[haspopup]:translate-y-0"
+                aria-pressed={state.sort === "latest"}
+                onClick={() => void commit({ ...state, sort: "latest" })}
+              >
+                Latest
+              </Button>
+            </div>
+          ) : null}
+        </div>
         {visibleStories.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {view === "reading-list" ? "Nothing saved yet." : "No stories match these tags yet."}
           </p>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {visibleStories.map((story) => (
               <StoryCard
                 key={story.id}
@@ -169,9 +204,16 @@ export function App() {
                         { storyId: story.id, savedAt: new Date().toISOString(), story },
                       ];
                   void commit({ ...state, bookmarks });
+                  if (exists) toast("Removed from reading list", { id: "pulse-action" });
+                  else toast.success("Saved to reading list", { id: "pulse-action" });
                 }}
                 onVote={(value) => {
+                  const current =
+                    state.votes.find((item) => item.storyId === story.id)?.value ?? null;
                   void commit(toggleVote(state, story.id, value));
+                  if (current === value) toast("Vote removed", { id: "pulse-action" });
+                  else if (value === "up") toast.success("Upvoted", { id: "pulse-action" });
+                  else toast("Downvoted", { id: "pulse-action" });
                 }}
               />
             ))}

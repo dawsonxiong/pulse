@@ -13,6 +13,9 @@ type SidebarProps = {
   onEditTags: () => void;
 };
 
+const navItemClass =
+  "w-full justify-start transition-none active:translate-y-0 active:not-aria-[haspopup]:translate-y-0";
+
 export function Sidebar({
   view,
   tags,
@@ -30,14 +33,14 @@ export function Sidebar({
       <nav className="flex flex-col gap-1">
         <Button
           variant={view === "feed" && !activeTag ? "secondary" : "ghost"}
-          className="w-full justify-start"
+          className={navItemClass}
           onClick={() => onView("feed")}
         >
           My feed
         </Button>
         <Button
           variant={view === "reading-list" ? "secondary" : "ghost"}
-          className="w-full justify-start"
+          className={navItemClass}
           onClick={() => onView("reading-list")}
         >
           Reading list{bookmarkCount > 0 ? ` (${bookmarkCount})` : ""}
@@ -51,19 +54,14 @@ export function Sidebar({
             <Button
               key={slug}
               variant={activeTag === slug ? "secondary" : "ghost"}
-              className="w-full justify-start"
+              className={navItemClass}
               onClick={() => onFilterTag(slug)}
             >
               {TAG_BY_SLUG.get(slug)?.label ?? slug}
             </Button>
           ))}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mt-1 w-full justify-start"
-          onClick={onEditTags}
-        >
+        <Button variant="ghost" size="sm" className={`mt-1 ${navItemClass}`} onClick={onEditTags}>
           Edit tags
         </Button>
       </div>

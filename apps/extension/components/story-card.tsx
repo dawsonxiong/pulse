@@ -1,4 +1,4 @@
-import type { FeedStory } from "@pulse/shared";
+import { usableStoryImage, type FeedStory } from "@pulse/shared";
 import { Button, buttonVariants } from "@pulse/ui/components/button";
 import {
   Card,
@@ -28,33 +28,41 @@ type StoryCardProps = {
 };
 
 function storyImage(story: FeedStory): string | null {
-  return (
-    story.representative.imageUrl ?? story.posts.find((post) => post.imageUrl)?.imageUrl ?? null
+  return usableStoryImage(
+    story.representative.imageUrl ?? story.posts.find((post) => post.imageUrl)?.imageUrl ?? null,
   );
 }
 
 const actionButtonClass =
-  "transition-none hover:bg-muted hover:text-foreground dark:hover:bg-muted active:translate-y-0 aria-pressed:bg-muted aria-pressed:text-primary";
+  "transition-none hover:bg-muted dark:hover:bg-muted active:translate-y-0 active:not-aria-[haspopup]:translate-y-0";
 
 export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }: StoryCardProps) {
   const extra = story.posts.filter((post) => post.id !== story.representative.id);
   const clustered = story.sourceCount > 1 || extra.length > 0;
   const href = story.representative.url;
+  const image = storyImage(story);
 
   return (
-    <Card size="sm" className="h-full pt-0">
+    <Card
+      size="sm"
+      className="h-full border border-border pt-0 ring-0 transition-none hover:border-foreground/20"
+    >
       <a href={href} target="_blank" rel="noreferrer" className="block">
         <Thumbnail
-          src={storyImage(story)}
+          key={image ?? "fallback"}
+          src={image}
+          iconUrl={story.representative.source.iconUrl}
           alt=""
           fallbackLabel={story.representative.source.name}
         />
         <CardHeader className="pt-4">
-          <CardTitle className="line-clamp-3">{story.representative.title}</CardTitle>
+          <CardTitle className="line-clamp-3 text-base font-semibold text-foreground group-data-[size=sm]/card:text-base">
+            {story.representative.title}
+          </CardTitle>
         </CardHeader>
       </a>
       <CardContent className="flex flex-1 flex-col gap-2">
-        <CardDescription className="flex items-center gap-1.5">
+        <CardDescription className="flex items-center gap-1.5 text-xs text-foreground/55">
           <SourceIcon
             src={story.representative.source.iconUrl}
             label={story.representative.source.name}
@@ -97,10 +105,14 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
       <CardFooter className="mt-auto gap-0.5">
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
+          title="Upvote"
           aria-label="Upvote"
           aria-pressed={vote === "up"}
-          className={actionButtonClass}
+          className={cn(
+            actionButtonClass,
+            "hover:text-emerald-400 aria-pressed:bg-emerald-500/15 aria-pressed:text-emerald-400",
+          )}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -111,10 +123,14 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
         </Button>
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
+          title="Downvote"
           aria-label="Downvote"
           aria-pressed={vote === "down"}
-          className={actionButtonClass}
+          className={cn(
+            actionButtonClass,
+            "hover:text-red-400 aria-pressed:bg-red-500/15 aria-pressed:text-red-400",
+          )}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -125,10 +141,14 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
         </Button>
         <Button
           variant="ghost"
-          size="icon-xs"
-          aria-label="Bookmark"
+          size="icon-sm"
+          title="Save to reading list"
+          aria-label="Save to reading list"
           aria-pressed={bookmarked}
-          className={actionButtonClass}
+          className={cn(
+            actionButtonClass,
+            "hover:text-primary aria-pressed:bg-muted aria-pressed:text-primary",
+          )}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();

@@ -8,6 +8,7 @@ describe("localStateSchema", () => {
     expect(parsed.tags).toEqual([]);
     expect(parsed.bookmarks).toEqual([]);
     expect(parsed.feedCache).toBeNull();
+    expect(parsed.sort).toBe("for-you");
     expect(EMPTY_STATE.hiddenStoryIds).toEqual([]);
   });
 });

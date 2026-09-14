@@ -2,6 +2,7 @@ import { prisma } from "@pulse/db";
 import {
   rankStories,
   scoreStory,
+  usableStoryImage,
   type FeedPost,
   type FeedStory,
   type RankableStory,
@@ -43,7 +44,7 @@ function toFeedPost(post: PostRow): FeedPost {
     title: post.title,
     author: post.author,
     excerpt: post.excerpt,
-    imageUrl: post.imageUrl,
+    imageUrl: usableStoryImage(post.imageUrl),
     publishedAt: post.publishedAt.toISOString(),
     source: {
       id: post.source.id,

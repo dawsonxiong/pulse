@@ -9,6 +9,7 @@ export {
   tokenizeTitle,
 } from "./cluster";
 export { fixtureStories } from "./fixtures";
+export { usableStoryImage } from "./thumbnail";
 export {
   RECENCY_HALF_LIFE_MS,
   ZERO_OVERLAP_TAG_SCORE,
