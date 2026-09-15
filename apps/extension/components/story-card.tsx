@@ -1,4 +1,4 @@
-import { usableStoryImage, type FeedStory } from "@pulse/shared";
+import { decodeHtmlEntities, usableStoryImage, type FeedStory } from "@pulse/shared";
 import { Button, buttonVariants } from "@pulse/ui/components/button";
 import {
   Card,
@@ -57,7 +57,7 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
         />
         <CardHeader className="pt-4">
           <CardTitle className="line-clamp-3 text-base font-semibold text-foreground group-data-[size=sm]/card:text-base">
-            {story.representative.title}
+            {decodeHtmlEntities(story.representative.title)}
           </CardTitle>
         </CardHeader>
       </a>
@@ -93,7 +93,7 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
                       rel="noreferrer"
                       className="line-clamp-2 text-xs text-foreground hover:underline"
                     >
-                      {post.title}
+                      {decodeHtmlEntities(post.title)}
                     </a>
                   </li>
                 ))}

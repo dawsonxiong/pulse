@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from "./html-entities";
 import type { ClusterCandidate } from "./types";
 
 export const DEFAULT_MIN_JACCARD = 0.72;
@@ -38,7 +39,7 @@ const STOPWORDS = new Set([
 ]);
 
 export function tokenizeTitle(title: string): string[] {
-  return title
+  return decodeHtmlEntities(title)
     .toLowerCase()
     .replace(/[^a-z0-9.+#]+/g, " ")
     .split(/\s+/)

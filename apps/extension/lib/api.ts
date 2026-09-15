@@ -1,4 +1,4 @@
-import type { FeedResponse, FeedStory, Tag } from "@pulse/shared";
+import { decodeFeedStory, type FeedResponse, type FeedStory, type Tag } from "@pulse/shared";
 
 const API_URL = import.meta.env.WXT_API_URL ?? "http://localhost:3000";
 
@@ -13,7 +13,7 @@ export async function fetchFeed(tags: string[]): Promise<FeedStory[]> {
   if (tags.length > 0) params.set("tags", tags.join(","));
   const query = params.toString();
   const body = await getJson<FeedResponse>(`/api/feed${query ? `?${query}` : ""}`);
-  return body.stories;
+  return body.stories.map(decodeFeedStory);
 }
 
 export async function fetchTags(): Promise<Tag[]> {

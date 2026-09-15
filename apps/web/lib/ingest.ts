@@ -122,8 +122,11 @@ export async function ingestFeeds(now = new Date()): Promise<IngestResult> {
           item.imageUrl ? resolveHttpUrl(item.imageUrl, source.rssUrl) : null,
         );
         if (existing) {
-          if (existing.imageUrl !== imageUrl) {
-            await prisma.post.update({ where: { id: existing.id }, data: { imageUrl } });
+          const data: { imageUrl?: string | null; title?: string } = {};
+          if (existing.imageUrl !== imageUrl) data.imageUrl = imageUrl;
+          if (existing.title !== item.title) data.title = item.title;
+          if (Object.keys(data).length > 0) {
+            await prisma.post.update({ where: { id: existing.id }, data });
           }
           continue;
         }

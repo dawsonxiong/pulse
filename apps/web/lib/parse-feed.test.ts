@@ -40,6 +40,34 @@ describe("parseFeedXml", () => {
     const items = parseFeedXml(encodedHtmlRss);
     expect(items[0]?.imageUrl).toBe("https://cdn.example.com/hero.png");
   });
+
+  it("decodes numeric HTML entities in titles", () => {
+    const xml = `<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>AI&#8217;s and Perplexity&#8217;s new models</title>
+      <link>https://thenewstack.io/example</link>
+    </item>
+  </channel>
+</rss>`;
+    const items = parseFeedXml(xml);
+    expect(items[0]?.title).toBe("AI\u2019s and Perplexity\u2019s new models");
+    expect(items[0]?.title).not.toContain("&#");
+  });
+
+  it("decodes entities inside CDATA titles", () => {
+    const xml = `<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title><![CDATA[AI&#8217;s weekly brief]]></title>
+      <link>https://thenewstack.io/cdata</link>
+    </item>
+  </channel>
+</rss>`;
+    expect(parseFeedXml(xml)[0]?.title).toBe("AI\u2019s weekly brief");
+  });
 });
 
 describe("ogImageFromHtml", () => {

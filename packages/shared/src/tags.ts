@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from "./html-entities";
 import type { Tag } from "./types";
 
 export const TAG_CATALOG: readonly Tag[] = [
@@ -87,7 +88,7 @@ const TITLE_ALIASES: Readonly<Record<string, readonly string[]>> = {
 const SHORT_SLUG_MIN = 3;
 
 export function tagsFromTitle(title: string, catalog: readonly Tag[] = TAG_CATALOG): string[] {
-  const haystack = ` ${title.toLowerCase()} `;
+  const haystack = ` ${decodeHtmlEntities(title).toLowerCase()} `;
   const found: string[] = [];
 
   for (const tag of catalog) {

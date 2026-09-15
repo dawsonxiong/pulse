@@ -1,4 +1,4 @@
-import { fixtureStories, type FeedPost, type FeedStory } from "@pulse/shared";
+import { decodeFeedStory, fixtureStories, type FeedPost, type FeedStory } from "@pulse/shared";
 import { z } from "zod";
 
 const feedPostSchema: z.ZodType<FeedPost> = z.object({
@@ -68,7 +68,7 @@ function storageArea(): chrome.storage.StorageArea | null {
   return globalThis.chrome?.storage?.local ?? null;
 }
 
-export const FEED_CACHE_VERSION = 5;
+export const FEED_CACHE_VERSION = 7;
 
 export async function loadState(): Promise<LocalState> {
   const area = storageArea();
@@ -90,7 +90,7 @@ export async function saveState(state: LocalState): Promise<void> {
 
 export function cachedOrFixture(state: LocalState): FeedStory[] {
   if (state.feedCache && state.feedCache.stories.length > 0) {
-    return state.feedCache.stories;
+    return state.feedCache.stories.map(decodeFeedStory);
   }
   return fixtureStories();
 }

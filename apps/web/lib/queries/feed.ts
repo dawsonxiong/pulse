@@ -1,5 +1,6 @@
 import { prisma } from "@pulse/db";
 import {
+  decodeHtmlEntities,
   rankStories,
   scoreStory,
   usableStoryImage,
@@ -41,9 +42,9 @@ function toFeedPost(post: PostRow): FeedPost {
   return {
     id: post.id,
     url: post.url,
-    title: post.title,
-    author: post.author,
-    excerpt: post.excerpt,
+    title: decodeHtmlEntities(post.title),
+    author: post.author ? decodeHtmlEntities(post.author) : null,
+    excerpt: post.excerpt ? decodeHtmlEntities(post.excerpt) : null,
     imageUrl: usableStoryImage(post.imageUrl),
     publishedAt: post.publishedAt.toISOString(),
     source: {

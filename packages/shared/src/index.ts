@@ -9,6 +9,7 @@ export {
   tokenizeTitle,
 } from "./cluster";
 export { fixtureStories } from "./fixtures";
+export { decodeFeedPost, decodeFeedStory, decodeHtmlEntities } from "./html-entities";
 export { usableStoryImage } from "./thumbnail";
 export {
   RECENCY_HALF_LIFE_MS,

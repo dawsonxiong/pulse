@@ -1,7 +1,15 @@
-import { rankStories, TAG_BY_SLUG, type FeedStory, type RankableStory } from "@pulse/shared";
+import {
+  decodeHtmlEntities,
+  rankStories,
+  TAG_BY_SLUG,
+  type FeedStory,
+  type RankableStory,
+} from "@pulse/shared";
 import { Button } from "@pulse/ui/components/button";
+import { Input } from "@pulse/ui/components/input";
 import { toast } from "@pulse/ui/components/sonner";
-import { useEffect, useMemo, useState } from "react";
+import { RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchFeed } from "../lib/api";
 import { cachedOrFixture, loadState, saveState, type LocalState } from "../lib/storage";
 import { Onboarding } from "./onboarding";
@@ -26,12 +34,32 @@ function feedHeading(view: "feed" | "reading-list", activeTag: string | null): s
   return "My feed";
 }
 
+function storyMatchesQuery(story: FeedStory, query: string): boolean {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  const haystacks = [
+    story.representative.title,
+    story.representative.source.name,
+    ...story.posts.flatMap((post) => [post.title, post.source.name]),
+  ];
+  return haystacks.some((value) => decodeHtmlEntities(value).toLowerCase().includes(needle));
+}
+
+function emptyCopy(view: "feed" | "reading-list", searching: boolean): string {
+  if (searching) return "No stories match this search.";
+  if (view === "reading-list") return "Nothing saved yet.";
+  return "No stories match these tags yet.";
+}
+
 export function App() {
   const [state, setState] = useState<LocalState | null>(null);
   const [stories, setStories] = useState<FeedStory[]>([]);
   const [view, setView] = useState<"feed" | "reading-list">("feed");
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [editingTags, setEditingTags] = useState(false);
+  const [query, setQuery] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +77,19 @@ export function App() {
 
   const onboarded = state?.onboarded ?? false;
 
+  function persistStories(fresh: FeedStory[]) {
+    setStories(fresh);
+    setState((prev) => {
+      if (!prev) return prev;
+      const next = {
+        ...prev,
+        feedCache: { fetchedAt: new Date().toISOString(), stories: fresh },
+      };
+      void saveState(next);
+      return next;
+    });
+  }
+
   useEffect(() => {
     if (!onboarded) return;
     let cancelled = false;
@@ -56,28 +97,49 @@ export function App() {
     void fetchFeed(tags)
       .then((fresh) => {
         if (cancelled) return;
-        setStories(fresh);
-        setState((prev) => {
-          if (!prev) return prev;
-          const next = {
-            ...prev,
-            feedCache: { fetchedAt: new Date().toISOString(), stories: fresh },
-          };
-          void saveState(next);
-          return next;
-        });
+        persistStories(fresh);
       })
       .catch(() => {
-        toast.error("Couldn't refresh the feed");
+        if (!cancelled) toast.error("Couldn't refresh the feed");
       });
     return () => {
       cancelled = true;
     };
   }, [onboarded, tagKey]);
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && query) {
+        setQuery("");
+        return;
+      }
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const tag = (event.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      event.preventDefault();
+      searchRef.current?.focus();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [query]);
+
   async function commit(next: LocalState) {
     setState(next);
     await saveState(next);
+  }
+
+  async function refreshFeed() {
+    if (!state || refreshing) return;
+    setRefreshing(true);
+    try {
+      const fresh = await fetchFeed(state.tags);
+      persistStories(fresh);
+      toast.success("Feed updated", { id: "pulse-action" });
+    } catch {
+      toast.error("Couldn't refresh the feed");
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   const ranked = useMemo(() => {
@@ -134,8 +196,9 @@ export function App() {
       view === "reading-list"
         ? state.bookmarks.map((item) => item.story)
         : ordered.map((item) => item.story);
-    if (view !== "feed" || !activeTag) return base;
-    return base.filter((story) => story.tags.includes(activeTag));
+    const tagged =
+      view !== "feed" || !activeTag ? base : base.filter((story) => story.tags.includes(activeTag));
+    return tagged.filter((story) => storyMatchesQuery(story, query));
   })();
 
   return (
@@ -156,36 +219,61 @@ export function App() {
         }}
       />
       <main className="flex min-w-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-heading text-lg font-medium tracking-tight">
-            {feedHeading(view, activeTag)}
-          </h1>
-          {view === "feed" ? (
-            <div className="flex rounded-lg border border-border p-0.5">
-              <Button
-                size="xs"
-                variant={state.sort === "for-you" ? "secondary" : "ghost"}
-                className="transition-none active:translate-y-0 active:not-aria-[haspopup]:translate-y-0"
-                aria-pressed={state.sort === "for-you"}
-                onClick={() => void commit({ ...state, sort: "for-you" })}
-              >
-                For you
-              </Button>
-              <Button
-                size="xs"
-                variant={state.sort === "latest" ? "secondary" : "ghost"}
-                className="transition-none active:translate-y-0 active:not-aria-[haspopup]:translate-y-0"
-                aria-pressed={state.sort === "latest"}
-                onClick={() => void commit({ ...state, sort: "latest" })}
-              >
-                Latest
-              </Button>
-            </div>
-          ) : null}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 className="font-heading text-lg font-medium tracking-tight">
+              {feedHeading(view, activeTag)}
+            </h1>
+            {view === "feed" ? (
+              <div className="flex rounded-lg border border-border p-0.5">
+                <Button
+                  size="xs"
+                  variant={state.sort === "for-you" ? "secondary" : "ghost"}
+                  className="transition-none active:translate-y-0 active:not-aria-[haspopup]:translate-y-0"
+                  aria-pressed={state.sort === "for-you"}
+                  onClick={() => void commit({ ...state, sort: "for-you" })}
+                >
+                  For you
+                </Button>
+                <Button
+                  size="xs"
+                  variant={state.sort === "latest" ? "secondary" : "ghost"}
+                  className="transition-none active:translate-y-0 active:not-aria-[haspopup]:translate-y-0"
+                  aria-pressed={state.sort === "latest"}
+                  onClick={() => void commit({ ...state, sort: "latest" })}
+                >
+                  Latest
+                </Button>
+              </div>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              ref={searchRef}
+              id="feed-search"
+              type="search"
+              value={query}
+              placeholder="Search"
+              aria-label="Search stories"
+              className="h-8 w-44 transition-none md:w-56"
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title="Refresh"
+              aria-label="Refresh feed"
+              disabled={refreshing}
+              className="transition-none active:translate-y-0 active:not-aria-[haspopup]:translate-y-0"
+              onClick={() => void refreshFeed()}
+            >
+              <RefreshCw />
+            </Button>
+          </div>
         </div>
         {visibleStories.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {view === "reading-list" ? "Nothing saved yet." : "No stories match these tags yet."}
+            {emptyCopy(view, query.trim().length > 0)}
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

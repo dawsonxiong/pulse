@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from "@pulse/shared";
 import { XMLParser } from "fast-xml-parser";
 
 export type ParsedFeedItem = {
@@ -26,18 +27,9 @@ function asText(value: unknown): string | null {
   return null;
 }
 
-function decodeEntities(value: string): string {
-  return value
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&amp;/gi, "&");
-}
-
 function stripHtml(value: string | null): string | null {
   if (!value) return null;
-  const text = decodeEntities(value)
+  const text = decodeHtmlEntities(value)
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -87,7 +79,7 @@ function isImagePath(url: string): boolean {
 
 function usableImageUrl(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const url = decodeEntities(raw.trim());
+  const url = decodeHtmlEntities(raw.trim());
   if (!url) return null;
   const lower = url.toLowerCase();
   if (lower.startsWith("data:")) return null;
@@ -100,7 +92,7 @@ function usableImageUrl(raw: string | null | undefined): string | null {
 
 function imageFromHtml(html: string | null): string | null {
   if (!html) return null;
-  const decoded = decodeEntities(html);
+  const decoded = decodeHtmlEntities(html);
   const img = decoded.match(/<img[^>]+src=["']([^"']+)["']/i);
   const fromSrc = usableImageUrl(img?.[1]);
   if (fromSrc) return fromSrc;
@@ -218,16 +210,18 @@ export function parseFeedXml(xml: string): ParsedFeedItem[] {
   for (const raw of items) {
     if (!raw || typeof raw !== "object") continue;
     const item = raw as Record<string, unknown>;
-    const title = asText(item.title);
+    const rawTitle = asText(item.title);
+    const title = rawTitle ? decodeHtmlEntities(rawTitle) : null;
     const url =
       linkHref(item.link, asText(item.link) ?? asText(item.guid) ?? asText(item.id)) ??
       asText(item.id);
     if (!title || !url) continue;
 
-    const author =
+    const rawAuthor =
       asText(item["dc:creator"]) ??
       asText((item.author as { name?: unknown } | undefined)?.name) ??
       asText(item.author);
+    const author = rawAuthor ? decodeHtmlEntities(rawAuthor) : null;
 
     const excerpt = stripHtml(
       asText(item.description) ?? asText(item.summary) ?? asText(item["content:encoded"]),
