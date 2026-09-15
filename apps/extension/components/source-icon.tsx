@@ -17,6 +17,8 @@ export function SourceIcon({ src, label, className }: SourceIconProps) {
       src={src}
       alt=""
       title={label}
+      loading="lazy"
+      decoding="async"
       className={cn("size-4 shrink-0 rounded-sm object-contain", className)}
       onError={() => setFailed(true)}
     />

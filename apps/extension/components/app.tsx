@@ -9,7 +9,7 @@ import { Button } from "@pulse/ui/components/button";
 import { Input } from "@pulse/ui/components/input";
 import { toast } from "@pulse/ui/components/sonner";
 import { RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchFeed } from "../lib/api";
 import { cachedOrFixture, loadState, saveState, type LocalState } from "../lib/storage";
 import { Onboarding } from "./onboarding";
@@ -60,6 +60,11 @@ export function App() {
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const queryRef = useRef(query);
+
+  useEffect(() => {
+    queryRef.current = query;
+  }, [query]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,7 +114,7 @@ export function App() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && query) {
+      if (event.key === "Escape" && queryRef.current) {
         setQuery("");
         return;
       }
@@ -121,7 +126,35 @@ export function App() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [query]);
+  }, []);
+
+  const handleToggleBookmark = useCallback((story: FeedStory) => {
+    setState((prev) => {
+      if (!prev) return prev;
+      const exists = prev.bookmarks.some((item) => item.storyId === story.id);
+      const bookmarks = exists
+        ? prev.bookmarks.filter((item) => item.storyId !== story.id)
+        : [...prev.bookmarks, { storyId: story.id, savedAt: new Date().toISOString(), story }];
+      const next = { ...prev, bookmarks };
+      void saveState(next);
+      if (exists) toast("Removed from reading list", { id: "pulse-action" });
+      else toast.success("Saved to reading list", { id: "pulse-action" });
+      return next;
+    });
+  }, []);
+
+  const handleVote = useCallback((storyId: string, value: "up" | "down") => {
+    setState((prev) => {
+      if (!prev) return prev;
+      const current = prev.votes.find((vote) => vote.storyId === storyId)?.value ?? null;
+      const next = toggleVote(prev, storyId, value);
+      void saveState(next);
+      if (current === value) toast("Vote removed", { id: "pulse-action" });
+      else if (value === "up") toast.success("Upvoted", { id: "pulse-action" });
+      else toast("Downvoted", { id: "pulse-action" });
+      return next;
+    });
+  }, []);
 
   async function commit(next: LocalState) {
     setState(next);
@@ -142,9 +175,20 @@ export function App() {
     }
   }
 
+  const voteMap = useMemo(
+    () => new Map((state?.votes ?? []).map((vote) => [vote.storyId, vote.value])),
+    [state?.votes],
+  );
+  const bookmarkIds = useMemo(
+    () => new Set((state?.bookmarks ?? []).map((item) => item.storyId)),
+    [state?.bookmarks],
+  );
+
+  const userTags = state?.tags;
+  const sort = state?.sort ?? "for-you";
+
   const ranked = useMemo(() => {
-    if (!state) return [];
-    const voteMap = new Map(state.votes.map((vote) => [vote.storyId, vote.value]));
+    if (!userTags) return [];
     const items: Ranked[] = stories.map((story) => ({
       id: story.id,
       publishedAt: new Date(story.publishedAt),
@@ -153,13 +197,13 @@ export function App() {
       upvotes: voteMap.get(story.id) === "up" ? 1 : 0,
       story,
     }));
-    return rankStories(items, state.tags, new Date());
-  }, [stories, state]);
+    return rankStories(items, userTags, new Date());
+  }, [stories, userTags, voteMap]);
 
   const ordered = useMemo(() => {
-    if (!state || state.sort === "for-you") return ranked;
+    if (sort === "for-you") return ranked;
     return [...ranked].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
-  }, [ranked, state]);
+  }, [ranked, sort]);
 
   if (!state) {
     return (
@@ -202,7 +246,7 @@ export function App() {
   })();
 
   return (
-    <div className="pulse-glow flex min-h-full bg-background">
+    <div className="pulse-glow flex h-full bg-background">
       <Sidebar
         view={view}
         tags={state.tags}
@@ -218,7 +262,7 @@ export function App() {
           setActiveTag((current) => (current === slug ? null : slug));
         }}
       />
-      <main className="flex min-w-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             <h1 className="font-heading text-lg font-medium tracking-tight">
@@ -277,32 +321,15 @@ export function App() {
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {visibleStories.map((story) => (
+            {visibleStories.map((story, index) => (
               <StoryCard
                 key={story.id}
                 story={story}
-                bookmarked={state.bookmarks.some((item) => item.storyId === story.id)}
-                vote={state.votes.find((item) => item.storyId === story.id)?.value ?? null}
-                onToggleBookmark={() => {
-                  const exists = state.bookmarks.some((item) => item.storyId === story.id);
-                  const bookmarks = exists
-                    ? state.bookmarks.filter((item) => item.storyId !== story.id)
-                    : [
-                        ...state.bookmarks,
-                        { storyId: story.id, savedAt: new Date().toISOString(), story },
-                      ];
-                  void commit({ ...state, bookmarks });
-                  if (exists) toast("Removed from reading list", { id: "pulse-action" });
-                  else toast.success("Saved to reading list", { id: "pulse-action" });
-                }}
-                onVote={(value) => {
-                  const current =
-                    state.votes.find((item) => item.storyId === story.id)?.value ?? null;
-                  void commit(toggleVote(state, story.id, value));
-                  if (current === value) toast("Vote removed", { id: "pulse-action" });
-                  else if (value === "up") toast.success("Upvoted", { id: "pulse-action" });
-                  else toast("Downvoted", { id: "pulse-action" });
-                }}
+                bookmarked={bookmarkIds.has(story.id)}
+                vote={voteMap.get(story.id) ?? null}
+                priority={index < 4}
+                onToggleBookmark={handleToggleBookmark}
+                onVote={handleVote}
               />
             ))}
           </div>

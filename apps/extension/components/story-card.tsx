@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { decodeHtmlEntities, usableStoryImage, type FeedStory } from "@pulse/shared";
 import { Button, buttonVariants } from "@pulse/ui/components/button";
 import {
@@ -23,8 +24,9 @@ type StoryCardProps = {
   story: FeedStory;
   bookmarked: boolean;
   vote: "up" | "down" | null;
-  onToggleBookmark: () => void;
-  onVote: (value: "up" | "down") => void;
+  priority?: boolean;
+  onToggleBookmark: (story: FeedStory) => void;
+  onVote: (storyId: string, value: "up" | "down") => void;
 };
 
 function storyImage(story: FeedStory): string | null {
@@ -36,7 +38,14 @@ function storyImage(story: FeedStory): string | null {
 const actionButtonClass =
   "transition-none hover:bg-muted dark:hover:bg-muted active:translate-y-0 active:not-aria-[haspopup]:translate-y-0";
 
-export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }: StoryCardProps) {
+export const StoryCard = memo(function StoryCard({
+  story,
+  bookmarked,
+  vote,
+  priority = false,
+  onToggleBookmark,
+  onVote,
+}: StoryCardProps) {
   const extra = story.posts.filter((post) => post.id !== story.representative.id);
   const clustered = story.sourceCount > 1 || extra.length > 0;
   const href = story.representative.url;
@@ -45,7 +54,7 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
   return (
     <Card
       size="sm"
-      className="h-full border border-border pt-0 ring-0 transition-none hover:border-foreground/20"
+      className="h-full border border-border pt-0 ring-0 transition-none [content-visibility:auto] [contain-intrinsic-size:auto_24rem] hover:border-foreground/20"
     >
       <a href={href} target="_blank" rel="noreferrer" className="block">
         <Thumbnail
@@ -54,6 +63,7 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
           iconUrl={story.representative.source.iconUrl}
           alt=""
           fallbackLabel={story.representative.source.name}
+          priority={priority}
         />
         <CardHeader className="pt-4">
           <CardTitle className="line-clamp-3 text-base font-semibold text-foreground group-data-[size=sm]/card:text-base">
@@ -116,7 +126,7 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            onVote("up");
+            onVote(story.id, "up");
           }}
         >
           <ThumbsUp className={vote === "up" ? "fill-current" : undefined} />
@@ -134,7 +144,7 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            onVote("down");
+            onVote(story.id, "down");
           }}
         >
           <ThumbsDown className={vote === "down" ? "fill-current" : undefined} />
@@ -152,7 +162,7 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            onToggleBookmark();
+            onToggleBookmark(story);
           }}
         >
           <Bookmark className={bookmarked ? "fill-current" : undefined} />
@@ -160,4 +170,4 @@ export function StoryCard({ story, bookmarked, vote, onToggleBookmark, onVote }:
       </CardFooter>
     </Card>
   );
-}
+});

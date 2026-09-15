@@ -5,6 +5,7 @@ type ThumbnailProps = {
   iconUrl: string | null;
   alt: string;
   fallbackLabel: string;
+  priority?: boolean;
 };
 
 function watermarkInitial(label: string): string {
@@ -29,6 +30,8 @@ function Watermark({ iconUrl, label }: { iconUrl: string | null; label: string }
           src={iconUrl}
           alt=""
           className="size-24 rounded-2xl object-contain opacity-80"
+          loading="lazy"
+          decoding="async"
           onError={() => setFailed(true)}
         />
       )}
@@ -36,7 +39,7 @@ function Watermark({ iconUrl, label }: { iconUrl: string | null; label: string }
   );
 }
 
-export function Thumbnail({ src, iconUrl, alt, fallbackLabel }: ThumbnailProps) {
+export function Thumbnail({ src, iconUrl, alt, fallbackLabel, priority = false }: ThumbnailProps) {
   const [failed, setFailed] = useState(!src);
 
   if (failed || !src) {
@@ -48,6 +51,9 @@ export function Thumbnail({ src, iconUrl, alt, fallbackLabel }: ThumbnailProps) 
       <img
         src={src}
         alt={alt}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+        fetchPriority={priority ? "high" : "low"}
         className="aspect-[16/10] w-full object-cover"
         onError={() => setFailed(true)}
       />

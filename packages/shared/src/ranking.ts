@@ -37,5 +37,10 @@ export function rankStories<T extends RankableStory>(
   userTags: readonly string[],
   now: Date,
 ): T[] {
-  return [...stories].sort((a, b) => scoreStory(b, userTags, now) - scoreStory(a, userTags, now));
+  const scored = stories.map((story) => ({
+    story,
+    score: scoreStory(story, userTags, now),
+  }));
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((entry) => entry.story);
 }

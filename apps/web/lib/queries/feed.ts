@@ -38,6 +38,38 @@ type PostRow = {
   postTags: { tagSlug: string }[];
 };
 
+const postInclude = {
+  source: true,
+  postTags: true,
+} as const;
+
+const rankingSelect = {
+  id: true,
+  publishedAt: true,
+  sourceCount: true,
+  representativePost: {
+    select: {
+      source: { select: { authorityScore: true } },
+      postTags: { select: { tagSlug: true } },
+    },
+  },
+  storyPosts: {
+    select: {
+      post: {
+        select: {
+          source: { select: { authorityScore: true } },
+          postTags: { select: { tagSlug: true } },
+        },
+      },
+    },
+  },
+} as const;
+
+type RankableRow = {
+  representativePost: { source: { authorityScore: number }; postTags: { tagSlug: string }[] };
+  storyPosts: { post: { source: { authorityScore: number }; postTags: { tagSlug: string }[] } }[];
+};
+
 function toFeedPost(post: PostRow): FeedPost {
   return {
     id: post.id,
@@ -56,15 +88,16 @@ function toFeedPost(post: PostRow): FeedPost {
   };
 }
 
-function storyTags(row: StoryRow): string[] {
+function storyTags(row: RankableRow): string[] {
   const slugs = new Set<string>();
+  for (const tag of row.representativePost.postTags) slugs.add(tag.tagSlug);
   for (const { post } of row.storyPosts) {
     for (const tag of post.postTags) slugs.add(tag.tagSlug);
   }
   return [...slugs];
 }
 
-function sourceAuthority(row: StoryRow): number {
+function sourceAuthority(row: RankableRow): number {
   let max = row.representativePost.source.authorityScore;
   for (const { post } of row.storyPosts) {
     max = Math.max(max, post.source.authorityScore);
@@ -97,50 +130,56 @@ export async function listFeed(options: {
   const offset = decodeCursor(options.cursor);
   const since = new Date(now.getTime() - FEED_WINDOW_MS);
 
-  const rows = (await prisma.story.findMany({
+  const lightRows = await prisma.story.findMany({
     where: { publishedAt: { gte: since } },
-    include: {
-      representativePost: {
-        include: { source: true, postTags: true },
-      },
-      storyPosts: {
-        include: {
-          post: { include: { source: true, postTags: true } },
-        },
-      },
-    },
-  })) as StoryRow[];
+    select: rankingSelect,
+  });
 
-  const rankable: (RankableStory & { row: StoryRow })[] = rows.map((row) => ({
+  const rankable: (RankableStory & { id: string })[] = lightRows.map((row) => ({
     id: row.id,
     publishedAt: row.publishedAt,
     tags: storyTags(row),
     sourceAuthority: sourceAuthority(row),
     upvotes: 0,
-    row,
   }));
 
   const ranked = rankStories(rankable, options.tags, now);
   const page = ranked.slice(offset, offset + PAGE_SIZE);
   const nextOffset = offset + PAGE_SIZE;
   const nextCursor = nextOffset < ranked.length ? encodeCursor(nextOffset) : null;
+  const pageIds = page.map((item) => item.id);
 
-  const stories: FeedStory[] = page.map((item) => {
-    const posts = item.row.storyPosts.map(({ post }) => toFeedPost(post));
-    const representative = toFeedPost(item.row.representativePost);
+  if (pageIds.length === 0) return { stories: [], nextCursor };
+
+  const fullRows = (await prisma.story.findMany({
+    where: { id: { in: pageIds } },
+    include: {
+      representativePost: { include: postInclude },
+      storyPosts: { include: { post: { include: postInclude } } },
+    },
+  })) as StoryRow[];
+  const byId = new Map(fullRows.map((row) => [row.id, row]));
+
+  const stories: FeedStory[] = page.flatMap((item) => {
+    const row = byId.get(item.id);
+    if (!row) return [];
+    const posts = row.storyPosts.map(({ post }) => toFeedPost(post));
+    const representative = toFeedPost(row.representativePost);
     if (!posts.some((post) => post.id === representative.id)) {
       posts.unshift(representative);
     }
-    return {
-      id: item.row.id,
-      publishedAt: item.row.publishedAt.toISOString(),
-      sourceCount: item.row.sourceCount,
-      sourceAuthority: item.sourceAuthority,
-      tags: item.tags,
-      score: scoreStory(item, options.tags, now),
-      representative,
-      posts,
-    };
+    return [
+      {
+        id: row.id,
+        publishedAt: row.publishedAt.toISOString(),
+        sourceCount: row.sourceCount,
+        sourceAuthority: item.sourceAuthority,
+        tags: item.tags,
+        score: scoreStory(item, options.tags, now),
+        representative,
+        posts,
+      },
+    ];
   });
 
   return { stories, nextCursor };

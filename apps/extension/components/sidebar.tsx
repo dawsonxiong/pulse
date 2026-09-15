@@ -26,7 +26,7 @@ export function Sidebar({
   onEditTags,
 }: SidebarProps) {
   return (
-    <aside className="flex w-56 shrink-0 flex-col gap-6 border-r border-sidebar-border px-3 py-5 text-sidebar-foreground">
+    <aside className="flex h-full w-56 shrink-0 flex-col gap-6 overflow-y-auto border-r border-sidebar-border px-3 py-5 text-sidebar-foreground">
       <div className="px-1.5">
         <Wordmark />
       </div>
@@ -61,7 +61,7 @@ export function Sidebar({
             </Button>
           ))}
         </div>
-        <Button variant="ghost" size="sm" className={`mt-1 ${navItemClass}`} onClick={onEditTags}>
+        <Button variant="ghost" className={`mt-1 ${navItemClass}`} onClick={onEditTags}>
           Edit tags
         </Button>
       </div>

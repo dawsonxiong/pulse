@@ -46,11 +46,6 @@ export function Onboarding({
             <h1 className="font-heading text-4xl font-medium tracking-tight text-balance lg:text-5xl">
               {editing ? "Edit tags" : "This tab is yours."}
             </h1>
-            <p className="max-w-xs text-sm leading-relaxed text-muted-foreground text-pretty">
-              {editing
-                ? "Languages, tools, topics. Keep at least five."
-                : "Languages, tools, topics. Pick at least five, then the feed opens."}
-            </p>
           </div>
           <Button size="lg" disabled={!ready} onClick={onContinue} className="self-start">
             {ready ? (editing ? "Done" : "Continue") : `${selected.length} / 5`}

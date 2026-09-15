@@ -48,7 +48,9 @@ export async function GET(req: Request) {
       cursor: parsed.data.cursor ?? null,
     });
     const body: FeedResponse = { stories, nextCursor };
-    return json(req, body);
+    return json(req, body, 200, {
+      "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+    });
   } catch (err) {
     console.error(err);
     const stories = fixtureStories();
