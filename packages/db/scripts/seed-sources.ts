@@ -29,7 +29,7 @@ async function main() {
         siteUrl: source.siteUrl,
         rssUrl: source.rssUrl,
         authorityScore: source.authorityScore,
-        active: true,
+        active: source.active ?? true,
       },
       create: {
         slug: source.slug,
@@ -37,7 +37,7 @@ async function main() {
         siteUrl: source.siteUrl,
         rssUrl: source.rssUrl,
         authorityScore: source.authorityScore,
-        active: true,
+        active: source.active ?? true,
       },
     });
 

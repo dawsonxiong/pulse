@@ -29,6 +29,8 @@ function Watermark({ iconUrl, label }: { iconUrl: string | null; label: string }
         <img
           src={iconUrl}
           alt=""
+          width={96}
+          height={96}
           className="size-24 rounded-2xl object-contain opacity-80"
           loading="lazy"
           decoding="async"
@@ -51,6 +53,8 @@ export function Thumbnail({ src, iconUrl, alt, fallbackLabel, priority = false }
       <img
         src={src}
         alt={alt}
+        width={640}
+        height={400}
         loading={priority ? "eager" : "lazy"}
         decoding="async"
         fetchPriority={priority ? "high" : "low"}

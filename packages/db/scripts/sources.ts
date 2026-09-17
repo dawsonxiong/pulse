@@ -5,6 +5,7 @@ export type SeedSource = {
   rssUrl: string;
   authorityScore: number;
   tags: string[];
+  active?: boolean;
 };
 
 export const SEED_SOURCES: readonly SeedSource[] = [
@@ -111,6 +112,7 @@ export const SEED_SOURCES: readonly SeedSource[] = [
     rssUrl: "https://www.uber.com/blog/engineering/rss/",
     authorityScore: 0.9,
     tags: ["distributed-systems", "backend"],
+    active: false,
   },
   {
     slug: "spotify-engineering",
@@ -335,6 +337,7 @@ export const SEED_SOURCES: readonly SeedSource[] = [
     rssUrl: "https://2ality.com/feeds/posts.atom",
     authorityScore: 0.76,
     tags: ["javascript", "typescript"],
+    active: false,
   },
   {
     slug: "thenewstack",

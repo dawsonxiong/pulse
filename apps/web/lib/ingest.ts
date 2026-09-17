@@ -2,35 +2,113 @@ import { prisma } from "@pulse/db";
 import {
   canonicalizeUrl,
   findMatchingStory,
+  hostnameFromUrl,
+  isShortUrlHost,
   resolveHttpUrl,
   TAG_BY_SLUG,
   tagsFromTitle,
   usableStoryImage,
-  type ClusterCandidate,
 } from "@pulse/shared";
 import { parseFeedXml } from "./parse-feed";
 
 const FEED_TIMEOUT_MS = 8_000;
-const GLOBAL_CAP_MS = 50_000;
+const PROCESS_DEADLINE_MS = 55_000;
+const FETCH_CONCURRENCY = 8;
 const MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const CLUSTER_WINDOW_MS = 48 * 60 * 60 * 1000;
+const MAX_ITEMS_PER_FEED = 40;
+
+export type IngestError = { slug: string; error: string };
 
 export type IngestResult = {
   sources: number;
   fetched: number;
   failed: number;
+  empty: number;
   inserted: number;
   clustered: number;
+  skippedOld: number;
+  skippedBadUrl: number;
+  claimed: number;
+  expanded: number;
+  timedOut: number;
+  errors: IngestError[];
 };
+
+type SourceRow = {
+  id: string;
+  slug: string;
+  rssUrl: string;
+  siteUrl: string;
+  sourceTags: { tagSlug: string }[];
+};
+
+async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  async function worker() {
+    while (true) {
+      const index = next;
+      next += 1;
+      if (index >= items.length) return;
+      const item = items[index];
+      if (item === undefined) return;
+      results[index] = await fn(item);
+    }
+  }
+  const workers = Math.min(Math.max(1, limit), items.length);
+  await Promise.all(Array.from({ length: workers }, () => worker()));
+  return results;
+}
 
 async function fetchText(url: string): Promise<string> {
   const response = await fetch(url, {
     signal: AbortSignal.timeout(FEED_TIMEOUT_MS),
-    headers: { "User-Agent": "PulseIngest/0.1 (+https://github.com/pulse)" },
+    headers: {
+      "User-Agent": "PulseIngest/0.1 (+https://github.com/pulse)",
+      Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*;q=0.8",
+    },
+    redirect: "follow",
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("text/html") && !contentType.includes("xml")) {
+    throw new Error(`HTML instead of feed (${contentType})`);
+  }
   return response.text();
 }
+
+async function followShortUrl(url: string): Promise<string> {
+  let current = url;
+  for (let hop = 0; hop < 5; hop += 1) {
+    if (!isShortUrlHost(hostnameFromUrl(current))) return current;
+    try {
+      const response = await fetch(current, {
+        method: "GET",
+        redirect: "manual",
+        signal: AbortSignal.timeout(4_000),
+        headers: { "User-Agent": "PulseIngest/0.1 (+https://github.com/pulse)" },
+      });
+      await response.body?.cancel();
+      const location = response.headers.get("location");
+      if (!location) return response.url || current;
+      current = resolveHttpUrl(location, current) ?? current;
+    } catch {
+      return current;
+    }
+  }
+  return current;
+}
+
+const postLookupSelect = {
+  id: true,
+  sourceId: true,
+  url: true,
+  canonicalUrl: true,
+  title: true,
+  imageUrl: true,
+  source: { select: { id: true, siteUrl: true } },
+} as const;
 
 function pickRepresentative(
   posts: {
@@ -53,8 +131,20 @@ function pickRepresentative(
 async function refreshStory(storyId: string): Promise<void> {
   const story = await prisma.story.findUniqueOrThrow({
     where: { id: storyId },
-    include: {
-      storyPosts: { include: { post: { include: { source: true } } } },
+    select: {
+      publishedAt: true,
+      storyPosts: {
+        select: {
+          post: {
+            select: {
+              id: true,
+              sourceId: true,
+              publishedAt: true,
+              source: { select: { authorityScore: true } },
+            },
+          },
+        },
+      },
     },
   });
   const posts = story.storyPosts.map((sp) => sp.post);
@@ -74,7 +164,11 @@ async function refreshStory(storyId: string): Promise<void> {
   });
 }
 
-export async function ingestFeeds(now = new Date()): Promise<IngestResult> {
+type FetchOutcome =
+  | { source: SourceRow; ok: true; xml: string }
+  | { source: SourceRow; ok: false; error: string };
+
+async function ingestFeeds(now = new Date()): Promise<IngestResult> {
   const started = now.getTime();
   const sources = await prisma.source.findMany({
     where: { active: true },
@@ -82,51 +176,169 @@ export async function ingestFeeds(now = new Date()): Promise<IngestResult> {
     orderBy: { lastFetchedAt: { sort: "asc", nulls: "first" } },
   });
 
-  let fetched = 0;
-  let failed = 0;
-  let inserted = 0;
-  let clustered = 0;
+  const result: IngestResult = {
+    sources: sources.length,
+    fetched: 0,
+    failed: 0,
+    empty: 0,
+    inserted: 0,
+    clustered: 0,
+    skippedOld: 0,
+    skippedBadUrl: 0,
+    claimed: 0,
+    expanded: 0,
+    timedOut: 0,
+    errors: [],
+  };
 
-  for (const source of sources) {
-    if (Date.now() - started > GLOBAL_CAP_MS) break;
+  const outcomes = await mapPool(
+    sources,
+    FETCH_CONCURRENCY,
+    async (source): Promise<FetchOutcome> => {
+      try {
+        const xml = await fetchText(source.rssUrl);
+        return { source, ok: true, xml };
+      } catch (err) {
+        const error = err instanceof Error ? err.message : "unknown ingest error";
+        return { source, ok: false, error: error.slice(0, 500) };
+      }
+    },
+  );
+
+  const recentStories = await prisma.story.findMany({
+    where: { publishedAt: { gte: new Date(now.getTime() - CLUSTER_WINDOW_MS) } },
+    select: {
+      id: true,
+      publishedAt: true,
+      representativePost: { select: { title: true } },
+    },
+  });
+  const candidates = recentStories.map((story) => ({
+    storyId: story.id,
+    title: story.representativePost.title,
+    publishedAt: story.publishedAt,
+  }));
+
+  const failures = outcomes.filter(
+    (outcome): outcome is Extract<FetchOutcome, { ok: false }> => !outcome.ok,
+  );
+  const successes = outcomes.filter(
+    (outcome): outcome is Extract<FetchOutcome, { ok: true }> => outcome.ok,
+  );
+
+  for (const outcome of failures) {
+    result.failed += 1;
+    result.errors.push({ slug: outcome.source.slug, error: outcome.error });
+    await prisma.source.update({
+      where: { id: outcome.source.id },
+      data: { lastFetchedAt: now, lastError: outcome.error },
+    });
+  }
+
+  for (const outcome of successes) {
+    if (Date.now() - started > PROCESS_DEADLINE_MS) {
+      result.timedOut += 1;
+      continue;
+    }
 
     try {
-      const xml = await fetchText(source.rssUrl);
-      const items = parseFeedXml(xml);
-      fetched += 1;
+      const parsed = parseFeedXml(outcome.xml);
+      if (parsed.length === 0) {
+        result.empty += 1;
+        const error = "parsed 0 items";
+        result.errors.push({ slug: outcome.source.slug, error });
+        await prisma.source.update({
+          where: { id: outcome.source.id },
+          data: { lastFetchedAt: now, lastError: error },
+        });
+        continue;
+      }
 
-      const recentStories = await prisma.story.findMany({
-        where: { publishedAt: { gte: new Date(now.getTime() - CLUSTER_WINDOW_MS) } },
-        include: { representativePost: true },
-      });
-      const candidates: ClusterCandidate[] = recentStories.map((story) => ({
-        storyId: story.id,
-        title: story.representativePost.title,
-        publishedAt: story.publishedAt,
-      }));
-
-      const sourceTagSlugs = source.sourceTags.map((row) => row.tagSlug);
+      result.fetched += 1;
+      const items = [...parsed]
+        .sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0))
+        .slice(0, MAX_ITEMS_PER_FEED);
+      const sourceTagSlugs = outcome.source.sourceTags.map((row) => row.tagSlug);
 
       for (const item of items) {
-        const absolute = resolveHttpUrl(item.url, source.rssUrl) ?? resolveHttpUrl(item.url);
-        if (!absolute) continue;
+        const unresolved =
+          resolveHttpUrl(item.url, outcome.source.rssUrl) ?? resolveHttpUrl(item.url);
+        if (!unresolved) {
+          result.skippedBadUrl += 1;
+          continue;
+        }
+        const followed = await followShortUrl(unresolved);
+        const absolute = resolveHttpUrl(followed) ?? unresolved;
         const canonical = canonicalizeUrl(absolute);
-        if (!canonical) continue;
+        const feedCanonical = canonicalizeUrl(unresolved);
+        if (!canonical) {
+          result.skippedBadUrl += 1;
+          continue;
+        }
         const publishedAt = item.publishedAt ?? now;
-        if (now.getTime() - publishedAt.getTime() > MAX_AGE_MS) continue;
+        if (now.getTime() - publishedAt.getTime() > MAX_AGE_MS) {
+          result.skippedOld += 1;
+          continue;
+        }
 
-        const existing = await prisma.post.findUnique({
-          where: { canonicalUrl: canonical },
-        });
+        const existing =
+          (await prisma.post.findUnique({
+            where: { canonicalUrl: canonical },
+            select: postLookupSelect,
+          })) ??
+          (feedCanonical && feedCanonical !== canonical
+            ? await prisma.post.findUnique({
+                where: { canonicalUrl: feedCanonical },
+                select: postLookupSelect,
+              })
+            : null);
         const imageUrl = usableStoryImage(
-          item.imageUrl ? resolveHttpUrl(item.imageUrl, source.rssUrl) : null,
+          item.imageUrl ? resolveHttpUrl(item.imageUrl, outcome.source.rssUrl) : null,
         );
         if (existing) {
-          const data: { imageUrl?: string | null; title?: string } = {};
+          const data: {
+            imageUrl?: string | null;
+            title?: string;
+            sourceId?: string;
+            url?: string;
+            canonicalUrl?: string;
+          } = {};
           if (existing.imageUrl !== imageUrl) data.imageUrl = imageUrl;
           if (existing.title !== item.title) data.title = item.title;
+          if (existing.url !== absolute) {
+            data.url = absolute;
+            if (
+              isShortUrlHost(hostnameFromUrl(existing.url)) &&
+              !isShortUrlHost(hostnameFromUrl(absolute))
+            ) {
+              result.expanded += 1;
+            }
+          }
+          if (existing.canonicalUrl !== canonical) {
+            const conflict = await prisma.post.findUnique({
+              where: { canonicalUrl: canonical },
+              select: { id: true },
+            });
+            if (!conflict) data.canonicalUrl = canonical;
+          }
+          const postHost = hostnameFromUrl(data.url ?? existing.url);
+          const incomingHost = hostnameFromUrl(outcome.source.siteUrl);
+          const currentHost = hostnameFromUrl(existing.source.siteUrl);
+          if (
+            postHost &&
+            incomingHost === postHost &&
+            currentHost !== postHost &&
+            existing.sourceId !== outcome.source.id
+          ) {
+            data.sourceId = outcome.source.id;
+            result.claimed += 1;
+          }
           if (Object.keys(data).length > 0) {
-            await prisma.post.update({ where: { id: existing.id }, data });
+            await prisma.post.update({
+              where: { id: existing.id },
+              data,
+              select: { id: true },
+            });
           }
           continue;
         }
@@ -138,7 +350,7 @@ export async function ingestFeeds(now = new Date()): Promise<IngestResult> {
 
         const post = await prisma.post.create({
           data: {
-            sourceId: source.id,
+            sourceId: outcome.source.id,
             url: absolute,
             canonicalUrl: canonical,
             title: item.title,
@@ -150,14 +362,15 @@ export async function ingestFeeds(now = new Date()): Promise<IngestResult> {
               create: tagSlugs.map((tagSlug) => ({ tagSlug })),
             },
           },
+          select: { id: true },
         });
-        inserted += 1;
+        result.inserted += 1;
 
         const matchId = findMatchingStory(item.title, publishedAt, candidates, now);
         if (matchId) {
           await prisma.storyPost.create({ data: { storyId: matchId, postId: post.id } });
           await refreshStory(matchId);
-          clustered += 1;
+          result.clustered += 1;
         } else {
           const story = await prisma.story.create({
             data: {
@@ -176,18 +389,21 @@ export async function ingestFeeds(now = new Date()): Promise<IngestResult> {
       }
 
       await prisma.source.update({
-        where: { id: source.id },
+        where: { id: outcome.source.id },
         data: { lastFetchedAt: now, lastError: null },
       });
     } catch (err) {
-      failed += 1;
-      const message = err instanceof Error ? err.message : "unknown ingest error";
+      result.failed += 1;
+      const error = (err instanceof Error ? err.message : "unknown ingest error").slice(0, 500);
+      result.errors.push({ slug: outcome.source.slug, error });
       await prisma.source.update({
-        where: { id: source.id },
-        data: { lastFetchedAt: now, lastError: message.slice(0, 500) },
+        where: { id: outcome.source.id },
+        data: { lastFetchedAt: now, lastError: error },
       });
     }
   }
 
-  return { sources: sources.length, fetched, failed, inserted, clustered };
+  return result;
 }
+
+export { ingestFeeds };

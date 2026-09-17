@@ -1,4 +1,10 @@
-import { decodeFeedStory, fixtureStories, type FeedPost, type FeedStory } from "@pulse/shared";
+import {
+  decodeFeedStory,
+  decorateFeedStory,
+  fixtureStories,
+  type FeedPost,
+  type FeedStory,
+} from "@pulse/shared";
 import { z } from "zod";
 
 const feedPostSchema: z.ZodType<FeedPost> = z.object({
@@ -58,6 +64,11 @@ export const localStateSchema = z.object({
     .default(null),
   feedCacheVersion: z.number().default(0),
   sort: z.enum(["for-you", "latest"]).default("for-you"),
+  displayName: z
+    .string()
+    .max(40)
+    .default("Anonymous")
+    .transform((value) => value.trim() || "Anonymous"),
 });
 
 export type LocalState = z.infer<typeof localStateSchema>;
@@ -90,7 +101,7 @@ export async function saveState(state: LocalState): Promise<void> {
 
 export function cachedOrFixture(state: LocalState): FeedStory[] {
   if (state.feedCache && state.feedCache.stories.length > 0) {
-    return state.feedCache.stories.map(decodeFeedStory);
+    return state.feedCache.stories.map((story) => decorateFeedStory(decodeFeedStory(story)));
   }
-  return fixtureStories();
+  return fixtureStories().map(decorateFeedStory);
 }

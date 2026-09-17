@@ -50,6 +50,9 @@ model Post {
   storyPosts         StoryPost[]
   postTags           PostTag[]
   representativeOf   Story[]     @relation("RepresentativePost")
+  extractedHtml      String?
+  extractedText      String?
+  extractedAt        DateTime?
 
   @@index([publishedAt])
   @@index([sourceId])
@@ -66,6 +69,7 @@ model Story {
 
   representativePost Post        @relation("RepresentativePost", fields: [representativePostId], references: [id])
   storyPosts         StoryPost[]
+  comments           Comment[]
 
   @@index([publishedAt])
   @@map("stories")
@@ -115,4 +119,17 @@ model PostTag {
 
   @@id([postId, tagSlug])
   @@map("post_tags")
+}
+
+model Comment {
+  id          String   @id @default(uuid()) @db.Uuid
+  storyId     String   @db.Uuid
+  displayName String
+  body        String
+  createdAt   DateTime @default(now())
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([storyId, createdAt])
+  @@map("comments")
 }

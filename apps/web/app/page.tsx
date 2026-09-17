@@ -19,7 +19,7 @@ export default function HomePage() {
 
       <section className="flex flex-col gap-4">
         <h2 className="text-sm font-medium">Load the unpacked extension</h2>
-        <ol className="list-decimal space-y-3 pl-5 text-sm text-muted-foreground">
+        <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm text-muted-foreground">
           <li>
             From the repo root, run{" "}
             <Badge variant="secondary" className="font-mono font-normal">

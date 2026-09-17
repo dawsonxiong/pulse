@@ -81,6 +81,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@mozilla/readability':
+        specifier: ^0.6.0
+        version: 0.6.0
       '@pulse/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -99,6 +102,9 @@ importers:
       fast-xml-parser:
         specifier: ^5.2.5
         version: 5.11.1
+      linkedom:
+        specifier: ^0.18.13
+        version: 0.18.13
       next:
         specifier: 16.2.6
         version: 16.2.6(@playwright/test@1.62.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -121,6 +127,9 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.3
+      '@types/mozilla-readability':
+        specifier: ^0.2.1
+        version: 0.2.1
       '@types/node':
         specifier: ^25.8.0
         version: 25.9.5
@@ -948,6 +957,10 @@ packages:
       '@cfworker/json-schema':
         optional: true
 
+  '@mozilla/readability@0.6.0':
+    resolution: {integrity: sha512-juG5VWh4qAivzTAeMzvY9xs9HY5rAcr2E4I7tiSSCokRFi7XIZCAu92ZkSTsIj1OPceCifL3cpfteP3pDT9/QQ==}
+    engines: {node: '>=14.0.0'}
+
   '@next/env@16.2.6':
     resolution: {integrity: sha512-gd8HoHN4ufj73WmR3JmVolrpJR47ILK6LouP5xElPglaVxir6e1a7VzvTvDWkOoPXT9rkkTzyCxBu4yeZfZwcw==}
 
@@ -1693,6 +1706,9 @@ packages:
 
   '@types/minimatch@3.0.5':
     resolution: {integrity: sha512-Klz949h02Gz2uZCMGwDUSDS1YBlTdDDgbWHi+81l29tQALUtvz4rAYi5uoVhE5Lagoq6DeqAUlbrHvW/mXDgdQ==}
+
+  '@types/mozilla-readability@0.2.1':
+    resolution: {integrity: sha512-RjLpe3MIpj53L+q50DTNlhv6KjHjgajFQwAF4KuxVZTa2+6Cs2UNAxS5awxABfZEHRYjGKeRDB21Zrtnsi911w==}
 
   '@types/node@25.9.5':
     resolution: {integrity: sha512-OScDchr2fwuUmWdf4kZ9h7PcJiYDVInhJizG/biAq3cAvqwYktuy/TYGGdZNMtNTFUP7rnb0NU4TUdm82kt4Rg==}
@@ -5162,6 +5178,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@mozilla/readability@0.6.0': {}
+
   '@next/env@16.2.6': {}
 
   '@next/swc-darwin-arm64@16.2.6':
@@ -5710,6 +5728,8 @@ snapshots:
   '@types/lodash@4.17.25': {}
 
   '@types/minimatch@3.0.5': {}
+
+  '@types/mozilla-readability@0.2.1': {}
 
   '@types/node@25.9.5':
     dependencies:

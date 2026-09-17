@@ -12,12 +12,14 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
     "@pulse/db": "workspace:*",
     "@pulse/shared": "workspace:*",
     "@pulse/ui": "workspace:*",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "fast-xml-parser": "^5.2.5",
+    "linkedom": "^0.18.13",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -27,6 +29,7 @@
   "devDependencies": {
     "@playwright/test": "^1.55.0",
     "@tailwindcss/postcss": "^4",
+    "@types/mozilla-readability": "^0.2.1",
     "@types/node": "^25.8.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",

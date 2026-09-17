@@ -53,3 +53,19 @@ export type ClusterCandidate = {
   title: string;
   publishedAt: Date;
 };
+
+export type StoryArticle = {
+  postId: string;
+  title: string;
+  url: string;
+  html: string | null;
+  text: string | null;
+  excerpt: string | null;
+};
+
+export type StoryComment = {
+  id: string;
+  displayName: string;
+  body: string;
+  createdAt: string;
+};

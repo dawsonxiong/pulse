@@ -8,6 +8,13 @@ export {
   overlappingTokens,
   tokenizeTitle,
 } from "./cluster";
+export {
+  decorateFeedStory,
+  displaySource,
+  hostnameFromUrl,
+  isShortUrlHost,
+  SHORT_URL_HOSTS,
+} from "./originating-source";
 export { fixtureStories } from "./fixtures";
 export { decodeFeedPost, decodeFeedStory, decodeHtmlEntities } from "./html-entities";
 export { usableStoryImage } from "./thumbnail";
@@ -27,6 +34,8 @@ export type {
   FeedSource,
   FeedStory,
   RankableStory,
+  StoryArticle,
+  StoryComment,
   Tag,
   TagKind,
 } from "./types";

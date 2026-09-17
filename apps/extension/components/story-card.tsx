@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { decodeHtmlEntities, usableStoryImage, type FeedStory } from "@pulse/shared";
-import { Button, buttonVariants } from "@pulse/ui/components/button";
+import { Button } from "@pulse/ui/components/button";
 import {
   Card,
   CardContent,
@@ -25,6 +25,7 @@ type StoryCardProps = {
   bookmarked: boolean;
   vote: "up" | "down" | null;
   priority?: boolean;
+  onOpenStory: (story: FeedStory, postId?: string) => void;
   onToggleBookmark: (story: FeedStory) => void;
   onVote: (storyId: string, value: "up" | "down") => void;
 };
@@ -35,28 +36,30 @@ function storyImage(story: FeedStory): string | null {
   );
 }
 
-const actionButtonClass =
-  "transition-none hover:bg-muted dark:hover:bg-muted active:translate-y-0 active:not-aria-[haspopup]:translate-y-0";
-
 export const StoryCard = memo(function StoryCard({
   story,
   bookmarked,
   vote,
   priority = false,
+  onOpenStory,
   onToggleBookmark,
   onVote,
 }: StoryCardProps) {
   const extra = story.posts.filter((post) => post.id !== story.representative.id);
   const clustered = story.sourceCount > 1 || extra.length > 0;
-  const href = story.representative.url;
   const image = storyImage(story);
 
   return (
     <Card
       size="sm"
-      className="h-full border border-border pt-0 ring-0 transition-none [content-visibility:auto] [contain-intrinsic-size:auto_24rem] hover:border-foreground/20"
+      className="h-full border border-border pt-0 ring-0 [content-visibility:auto] [contain-intrinsic-size:auto_24rem] hover:border-foreground/20"
     >
-      <a href={href} target="_blank" rel="noreferrer" className="block">
+      <button
+        type="button"
+        className="block w-full cursor-pointer border-0 bg-transparent p-0 text-left text-inherit outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        aria-haspopup="dialog"
+        onClick={() => onOpenStory(story)}
+      >
         <Thumbnail
           key={image ?? "fallback"}
           src={image}
@@ -66,11 +69,11 @@ export const StoryCard = memo(function StoryCard({
           priority={priority}
         />
         <CardHeader className="pt-4">
-          <CardTitle className="line-clamp-3 text-base font-semibold text-foreground group-data-[size=sm]/card:text-base">
+          <CardTitle className="line-clamp-3 min-w-0">
             {decodeHtmlEntities(story.representative.title)}
           </CardTitle>
         </CardHeader>
-      </a>
+      </button>
       <CardContent className="flex flex-1 flex-col gap-2">
         <CardDescription className="flex items-center gap-1.5 text-xs text-foreground/55">
           <SourceIcon
@@ -86,10 +89,9 @@ export const StoryCard = memo(function StoryCard({
         {clustered ? (
           <Collapsible>
             <CollapsibleTrigger
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "xs" }),
-                "-ml-1.5 text-muted-foreground",
-              )}
+              render={
+                <Button variant="ghost" size="xs" className="-ml-1.5 text-muted-foreground" />
+              }
             >
               {story.sourceCount} sources
             </CollapsibleTrigger>
@@ -97,14 +99,16 @@ export const StoryCard = memo(function StoryCard({
               <ul className="mt-1 flex flex-col gap-1">
                 {story.posts.map((post) => (
                   <li key={post.id}>
-                    <a
-                      href={post.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="line-clamp-2 text-xs text-foreground hover:underline"
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      className="h-auto w-full justify-start text-left whitespace-normal"
+                      aria-haspopup="dialog"
+                      onClick={() => onOpenStory(story, post.id)}
                     >
-                      {decodeHtmlEntities(post.title)}
-                    </a>
+                      <span className="line-clamp-2">{decodeHtmlEntities(post.title)}</span>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -119,15 +123,8 @@ export const StoryCard = memo(function StoryCard({
           title="Upvote"
           aria-label="Upvote"
           aria-pressed={vote === "up"}
-          className={cn(
-            actionButtonClass,
-            "hover:text-emerald-400 aria-pressed:bg-emerald-500/15 aria-pressed:text-emerald-400",
-          )}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onVote(story.id, "up");
-          }}
+          className={cn("hover:text-primary aria-pressed:bg-primary/15 aria-pressed:text-primary")}
+          onClick={() => onVote(story.id, "up")}
         >
           <ThumbsUp className={vote === "up" ? "fill-current" : undefined} />
         </Button>
@@ -138,14 +135,9 @@ export const StoryCard = memo(function StoryCard({
           aria-label="Downvote"
           aria-pressed={vote === "down"}
           className={cn(
-            actionButtonClass,
-            "hover:text-red-400 aria-pressed:bg-red-500/15 aria-pressed:text-red-400",
+            "hover:text-destructive aria-pressed:bg-destructive/15 aria-pressed:text-destructive",
           )}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onVote(story.id, "down");
-          }}
+          onClick={() => onVote(story.id, "down")}
         >
           <ThumbsDown className={vote === "down" ? "fill-current" : undefined} />
         </Button>
@@ -155,15 +147,8 @@ export const StoryCard = memo(function StoryCard({
           title="Save to reading list"
           aria-label="Save to reading list"
           aria-pressed={bookmarked}
-          className={cn(
-            actionButtonClass,
-            "hover:text-primary aria-pressed:bg-muted aria-pressed:text-primary",
-          )}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onToggleBookmark(story);
-          }}
+          className="hover:text-primary aria-pressed:bg-muted aria-pressed:text-primary"
+          onClick={() => onToggleBookmark(story)}
         >
           <Bookmark className={bookmarked ? "fill-current" : undefined} />
         </Button>

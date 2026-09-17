@@ -1,6 +1,7 @@
 import { prisma } from "@pulse/db";
 import {
   decodeHtmlEntities,
+  displaySource,
   rankStories,
   scoreStory,
   usableStoryImage,
@@ -38,7 +39,14 @@ type PostRow = {
   postTags: { tagSlug: string }[];
 };
 
-const postInclude = {
+const postSelect = {
+  id: true,
+  url: true,
+  title: true,
+  author: true,
+  excerpt: true,
+  imageUrl: true,
+  publishedAt: true,
   source: true,
   postTags: true,
 } as const;
@@ -79,12 +87,12 @@ function toFeedPost(post: PostRow): FeedPost {
     excerpt: post.excerpt ? decodeHtmlEntities(post.excerpt) : null,
     imageUrl: usableStoryImage(post.imageUrl),
     publishedAt: post.publishedAt.toISOString(),
-    source: {
+    source: displaySource(post.url, {
       id: post.source.id,
       name: post.source.name,
       siteUrl: post.source.siteUrl,
       iconUrl: post.source.iconUrl,
-    },
+    }),
   };
 }
 
@@ -154,8 +162,8 @@ export async function listFeed(options: {
   const fullRows = (await prisma.story.findMany({
     where: { id: { in: pageIds } },
     include: {
-      representativePost: { include: postInclude },
-      storyPosts: { include: { post: { include: postInclude } } },
+      representativePost: { select: postSelect },
+      storyPosts: { select: { post: { select: postSelect } } },
     },
   })) as StoryRow[];
   const byId = new Map(fullRows.map((row) => [row.id, row]));

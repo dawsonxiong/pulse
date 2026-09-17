@@ -15,6 +15,14 @@ export const catalogLimiter = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, "1 m"), prefix: "rl:catalog" })
   : null;
 
+export const articleLimiter = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, "1 m"), prefix: "rl:article" })
+  : null;
+
+export const commentLimiter = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, "1 m"), prefix: "rl:comment" })
+  : null;
+
 export async function enforce(req: Request, limiter: Ratelimit | null): Promise<Response | null> {
   if (!limiter) return null;
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "127.0.0.1";

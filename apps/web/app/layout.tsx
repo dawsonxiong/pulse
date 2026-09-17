@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { cn } from "@pulse/ui/lib/utils";
 import "./globals.css";
 
 const geist = Geist({
@@ -23,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${geist.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={cn("dark h-full antialiased", geist.variable, geistMono.variable)}>
       <body className="pulse-glow min-h-full bg-background font-sans">{children}</body>
     </html>
   );

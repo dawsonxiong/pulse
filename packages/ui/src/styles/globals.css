@@ -124,6 +124,14 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    @apply touch-manipulation;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
     @apply bg-background text-foreground;
   }
