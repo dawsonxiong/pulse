@@ -80,6 +80,7 @@ export const SEED_SOURCES: readonly SeedSource[] = [
     rssUrl: "https://planet.postgresql.org/rss20.xml",
     authorityScore: 0.88,
     tags: ["postgres", "sql", "databases"],
+    active: false,
   },
   {
     slug: "nodejs",
@@ -289,6 +290,7 @@ export const SEED_SOURCES: readonly SeedSource[] = [
     rssUrl: "https://www.smashingmagazine.com/feed/",
     authorityScore: 0.78,
     tags: ["frontend", "css", "web"],
+    active: false,
   },
   {
     slug: "css-tricks",
@@ -297,6 +299,7 @@ export const SEED_SOURCES: readonly SeedSource[] = [
     rssUrl: "https://css-tricks.com/feed/",
     authorityScore: 0.76,
     tags: ["css", "frontend", "web"],
+    active: false,
   },
   {
     slug: "josh-comeau",
@@ -305,6 +308,7 @@ export const SEED_SOURCES: readonly SeedSource[] = [
     rssUrl: "https://www.joshwcomeau.com/rss.xml",
     authorityScore: 0.8,
     tags: ["css", "react", "frontend"],
+    active: false,
   },
   {
     slug: "kentcdodds",
@@ -313,6 +317,7 @@ export const SEED_SOURCES: readonly SeedSource[] = [
     rssUrl: "https://kentcdodds.com/blog/rss.xml",
     authorityScore: 0.78,
     tags: ["javascript", "react", "testing"],
+    active: false,
   },
   {
     slug: "overreacted",
@@ -321,6 +326,7 @@ export const SEED_SOURCES: readonly SeedSource[] = [
     rssUrl: "https://overreacted.io/rss.xml",
     authorityScore: 0.84,
     tags: ["react", "javascript"],
+    active: false,
   },
   {
     slug: "tkdodo",
@@ -329,6 +335,7 @@ export const SEED_SOURCES: readonly SeedSource[] = [
     rssUrl: "https://tkdodo.eu/blog/rss.xml",
     authorityScore: 0.8,
     tags: ["react", "javascript", "frontend"],
+    active: false,
   },
   {
     slug: "2ality",
@@ -346,5 +353,6 @@ export const SEED_SOURCES: readonly SeedSource[] = [
     rssUrl: "https://thenewstack.io/feed/",
     authorityScore: 0.7,
     tags: ["devops", "kubernetes"],
+    active: false,
   },
 ];

@@ -139,7 +139,10 @@ export async function listFeed(options: {
   const since = new Date(now.getTime() - FEED_WINDOW_MS);
 
   const lightRows = await prisma.story.findMany({
-    where: { publishedAt: { gte: since } },
+    where: {
+      publishedAt: { gte: since },
+      representativePost: { source: { active: true } },
+    },
     select: rankingSelect,
   });
 

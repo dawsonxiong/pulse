@@ -63,7 +63,7 @@ export const localStateSchema = z.object({
     .nullable()
     .default(null),
   feedCacheVersion: z.number().default(0),
-  sort: z.enum(["for-you", "latest"]).default("for-you"),
+  sort: z.enum(["for-you", "latest"]).default("latest"),
   displayName: z
     .string()
     .max(40)
@@ -79,7 +79,7 @@ function storageArea(): chrome.storage.StorageArea | null {
   return globalThis.chrome?.storage?.local ?? null;
 }
 
-export const FEED_CACHE_VERSION = 7;
+export const FEED_CACHE_VERSION = 8;
 
 export async function loadState(): Promise<LocalState> {
   const area = storageArea();
@@ -88,7 +88,12 @@ export async function loadState(): Promise<LocalState> {
   const parsed = localStateSchema.safeParse(raw);
   if (!parsed.success) return EMPTY_STATE;
   if (parsed.data.feedCacheVersion !== FEED_CACHE_VERSION) {
-    return { ...parsed.data, feedCache: null, feedCacheVersion: FEED_CACHE_VERSION };
+    return {
+      ...parsed.data,
+      feedCache: null,
+      feedCacheVersion: FEED_CACHE_VERSION,
+      sort: "latest",
+    };
   }
   return parsed.data;
 }

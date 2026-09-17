@@ -271,7 +271,7 @@ export function App() {
   );
 
   const userTags = state?.tags;
-  const sort = state?.sort ?? "for-you";
+  const sort = state?.sort ?? "latest";
 
   const ranked = useMemo(() => {
     if (!userTags) return [];

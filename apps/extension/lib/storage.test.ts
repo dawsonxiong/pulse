@@ -8,7 +8,7 @@ describe("localStateSchema", () => {
     expect(parsed.tags).toEqual([]);
     expect(parsed.bookmarks).toEqual([]);
     expect(parsed.feedCache).toBeNull();
-    expect(parsed.sort).toBe("for-you");
+    expect(parsed.sort).toBe("latest");
     expect(parsed.displayName).toBe("Anonymous");
     expect(EMPTY_STATE.hiddenStoryIds).toEqual([]);
   });
