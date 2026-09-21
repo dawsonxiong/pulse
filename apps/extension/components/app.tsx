@@ -9,7 +9,6 @@ import {
 import { Button } from "@pulse/ui/components/button";
 import {
   Empty,
-  EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
@@ -72,17 +71,14 @@ function emptyCopy(
   view: "feed" | "reading-list",
   searching: boolean,
   filtering: boolean,
-): { title: string; description: string } {
+): { title: string } {
   if (searching || filtering) {
-    return {
-      title: "No matching stories",
-      description: "Try a different search or clear filters.",
-    };
+    return { title: "No matching stories" };
   }
   if (view === "reading-list") {
-    return { title: "Nothing saved yet", description: "Bookmark a story to add it here." };
+    return { title: "Nothing saved yet" };
   }
-  return { title: "No stories yet", description: "No stories match these tags yet." };
+  return { title: "No stories yet" };
 }
 
 export function App() {
@@ -434,7 +430,6 @@ export function App() {
                 )}
               </EmptyMedia>
               <EmptyTitle>{empty.title}</EmptyTitle>
-              <EmptyDescription>{empty.description}</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
