@@ -211,11 +211,8 @@ function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBod
             ) : (
               <Empty>
                 <EmptyHeader>
-                  <EmptyTitle>No summary</EmptyTitle>
-                  <EmptyDescription>
-                    This source didn&apos;t include a summary. Open the article tab to read the
-                    extracted page, or the original on the publisher&apos;s site.
-                  </EmptyDescription>
+                  <EmptyTitle>No summary available.</EmptyTitle>
+                  <EmptyDescription>Open the page to read the article.</EmptyDescription>
                 </EmptyHeader>
               </Empty>
             )}

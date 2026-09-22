@@ -25,6 +25,11 @@ body {
   line-height: 1.7;
 }
 
+::selection {
+  background: rgba(249, 115, 22, 0.35);
+  color: inherit;
+}
+
 .reader-prose :where(p, ul, ol, blockquote, pre, figure) {
   margin-block: 0.85em;
 }

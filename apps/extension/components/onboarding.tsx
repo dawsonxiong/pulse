@@ -47,9 +47,14 @@ export function Onboarding({
         <aside className="flex flex-col justify-between gap-10 border-border px-8 py-10 lg:sticky lg:top-0 lg:h-dvh lg:border-r lg:px-12 lg:py-14">
           <div className="flex flex-col gap-4">
             <Wordmark />
-            <h1 className="font-heading text-4xl font-medium tracking-tight text-balance lg:text-5xl">
-              {editing ? "Edit tags" : "This tab is yours."}
-            </h1>
+            <div className="flex flex-col gap-2">
+              <h1 className="font-heading text-4xl font-medium tracking-tight text-balance lg:text-5xl">
+                {editing ? "Edit tags" : "This tab is yours."}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Pick the languages, tools, and topics you want to see in your feed.
+              </p>
+            </div>
           </div>
           <div className="flex flex-col items-start gap-2">
             <p className="sr-only" aria-live="polite">
