@@ -124,12 +124,16 @@ model PostTag {
 model Comment {
   id          String   @id @default(uuid()) @db.Uuid
   storyId     String   @db.Uuid
+  parentId    String?  @db.Uuid
   displayName String
   body        String
   createdAt   DateTime @default(now())
 
-  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  story   Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
 
   @@index([storyId, createdAt])
+  @@index([parentId])
   @@map("comments")
 }

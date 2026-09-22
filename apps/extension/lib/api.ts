@@ -51,7 +51,7 @@ export async function fetchStoryComments(storyId: string): Promise<StoryComment[
 
 export async function postStoryComment(
   storyId: string,
-  input: { displayName: string; body: string },
+  input: { displayName: string; body: string; parentId?: string | null },
 ): Promise<StoryComment> {
   const response = await fetch(`${API_URL}/api/stories/${storyId}/comments`, {
     method: "POST",

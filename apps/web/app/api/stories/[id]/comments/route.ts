@@ -8,7 +8,24 @@ const idSchema = z.string().uuid();
 const createSchema = z.object({
   displayName: z.string().trim().min(1).max(40),
   body: z.string().trim().min(1).max(2000),
+  parentId: idSchema.nullish(),
 });
+
+function toStoryComment(row: {
+  id: string;
+  parentId: string | null;
+  displayName: string;
+  body: string;
+  createdAt: Date;
+}): StoryComment {
+  return {
+    id: row.id,
+    parentId: row.parentId,
+    displayName: row.displayName,
+    body: row.body,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
 
 function isMissingRelation(err: unknown): boolean {
   if (err && typeof err === "object" && "code" in err) {
@@ -37,15 +54,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     const rows = await prisma.comment.findMany({
       where: { storyId: id },
       orderBy: { createdAt: "asc" },
-      take: 100,
+      take: 200,
     });
-    const comments: StoryComment[] = rows.map((row) => ({
-      id: row.id,
-      displayName: row.displayName,
-      body: row.body,
-      createdAt: row.createdAt.toISOString(),
-    }));
-    return json(req, { comments });
+    return json(req, { comments: rows.map(toStoryComment) });
   } catch (err) {
     if (isMissingRelation(err)) return json(req, { comments: [] });
     throw err;
@@ -71,9 +82,20 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   let row;
   try {
+    // Threads are one level deep: a reply to a reply attaches to the top-level comment.
+    let parentId: string | null = null;
+    if (parsed.parentId) {
+      const parent = await prisma.comment.findUnique({
+        where: { id: parsed.parentId },
+        select: { id: true, storyId: true, parentId: true },
+      });
+      if (!parent || parent.storyId !== id) return json(req, { error: "invalid parent" }, 400);
+      parentId = parent.parentId ?? parent.id;
+    }
     row = await prisma.comment.create({
       data: {
         storyId: id,
+        parentId,
         displayName: parsed.displayName,
         body: parsed.body,
       },
@@ -82,13 +104,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (isMissingRelation(err)) return json(req, { error: "comments unavailable" }, 503);
     throw err;
   }
-  const comment: StoryComment = {
-    id: row.id,
-    displayName: row.displayName,
-    body: row.body,
-    createdAt: row.createdAt.toISOString(),
-  };
-  return json(req, { comment }, 201);
+  return json(req, { comment: toStoryComment(row) }, 201);
 }
 
 export const dynamic = "force-dynamic";

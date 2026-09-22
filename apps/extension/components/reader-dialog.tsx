@@ -3,7 +3,6 @@ import {
   type FeedPost,
   type FeedStory,
   type StoryArticle,
-  type StoryComment,
 } from "@pulse/shared";
 import { Alert, AlertDescription, AlertTitle } from "@pulse/ui/components/alert";
 import { Button } from "@pulse/ui/components/button";
@@ -21,15 +20,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@pulse/ui/components/empty";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@pulse/ui/components/field";
-import { Input } from "@pulse/ui/components/input";
 import { Spinner } from "@pulse/ui/components/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@pulse/ui/components/tabs";
-import { Textarea } from "@pulse/ui/components/textarea";
 import { AlertCircle, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
-import { fetchStoryArticle, fetchStoryComments, postStoryComment } from "../lib/api";
+import { fetchStoryArticle } from "../lib/api";
 import { relativeTime } from "../lib/time";
+import { CommentsSection } from "./comments-section";
 import { SourceIcon } from "./source-icon";
 
 type ReaderDialogProps = {
@@ -90,14 +87,8 @@ type ReaderBodyProps = {
 
 function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBodyProps) {
   const [tab, setTab] = useState("summary");
-  const [name, setName] = useState(displayName);
   const [article, setArticle] = useState<StoryArticle | null>(null);
   const [articleError, setArticleError] = useState(false);
-  const [comments, setComments] = useState<StoryComment[]>([]);
-  const [commentsError, setCommentsError] = useState(false);
-  const [commentBody, setCommentBody] = useState("");
-  const [commentError, setCommentError] = useState<string | null>(null);
-  const [posting, setPosting] = useState(false);
 
   useEffect(() => {
     if (tab !== "article") return;
@@ -117,53 +108,12 @@ function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBod
     };
   }, [story.id, post.id, tab]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void fetchStoryComments(story.id)
-      .then((next) => {
-        if (!cancelled) {
-          setComments(next);
-          setCommentsError(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setCommentsError(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [story.id]);
-
   const title = decodeHtmlEntities(post.title);
   const excerpt = post.excerpt
     ? decodeHtmlEntities(post.excerpt)
     : article?.excerpt
       ? decodeHtmlEntities(article.excerpt)
       : null;
-
-  function persistName(nextName: string) {
-    const next = nextName.trim() || "Anonymous";
-    if (next !== displayName) onDisplayNameChange(next);
-  }
-
-  async function submitComment() {
-    if (posting) return;
-    const body = commentBody.trim();
-    const nextName = name.trim() || "Anonymous";
-    if (!body) return;
-    setPosting(true);
-    setCommentError(null);
-    try {
-      const created = await postStoryComment(story.id, { displayName: nextName, body });
-      setComments((prev) => [...prev, created]);
-      setCommentBody("");
-      persistName(nextName);
-    } catch {
-      setCommentError("Couldn't post. Check your connection and try again.");
-    } finally {
-      setPosting(false);
-    }
-  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -236,10 +186,7 @@ function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBod
                 </EmptyHeader>
               </Empty>
             ) : article.html ? (
-              <div
-                className="reader-prose"
-                dangerouslySetInnerHTML={{ __html: article.html }}
-              />
+              <div className="reader-prose" dangerouslySetInnerHTML={{ __html: article.html }} />
             ) : article.excerpt ? (
               <p className="text-sm leading-relaxed text-pretty">
                 {decodeHtmlEntities(article.excerpt)}
@@ -254,75 +201,11 @@ function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBod
               </Alert>
             )}
           </TabsContent>
-          <section className="border-t border-border px-6 py-5">
-            <h2 className="mb-4 font-heading text-sm font-medium">Comments</h2>
-            {commentsError ? (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle />
-                <AlertTitle>Couldn&apos;t load comments</AlertTitle>
-                <AlertDescription>Check your connection and try again.</AlertDescription>
-              </Alert>
-            ) : comments.length === 0 ? (
-              <p className="mb-4 text-sm text-muted-foreground">No comments yet.</p>
-            ) : (
-              <ul className="mb-4 flex flex-col gap-3">
-                {comments.map((comment) => (
-                  <li key={comment.id} className="flex flex-col gap-1">
-                    <p className="text-xs text-muted-foreground">
-                      {comment.displayName}
-                      <span aria-hidden="true"> · </span>
-                      {relativeTime(comment.createdAt)}
-                    </p>
-                    <p className="text-sm whitespace-pre-wrap">{comment.body}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <form
-              className="flex flex-col gap-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void submitComment();
-              }}
-            >
-              <FieldGroup className="gap-2">
-                <Field>
-                  <FieldLabel htmlFor="comment-name">Display name</FieldLabel>
-                  <Input
-                    id="comment-name"
-                    name="displayName"
-                    autoComplete="nickname"
-                    spellCheck={false}
-                    value={name}
-                    maxLength={40}
-                    placeholder="Ada…"
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                </Field>
-                <Field data-invalid={commentError ? true : undefined}>
-                  <FieldLabel htmlFor="comment-body">Comment</FieldLabel>
-                  <Textarea
-                    id="comment-body"
-                    name="body"
-                    value={commentBody}
-                    maxLength={2000}
-                    placeholder="Write a comment…"
-                    aria-invalid={commentError ? true : undefined}
-                    className="min-h-20"
-                    onChange={(event) => {
-                      setCommentBody(event.target.value);
-                      if (commentError) setCommentError(null);
-                    }}
-                  />
-                  <FieldError>{commentError}</FieldError>
-                </Field>
-                <Button type="submit" className="self-end" disabled={posting}>
-                  {posting ? <Spinner data-icon="inline-start" /> : null}
-                  Post
-                </Button>
-              </FieldGroup>
-            </form>
-          </section>
+          <CommentsSection
+            storyId={story.id}
+            displayName={displayName}
+            onDisplayNameChange={onDisplayNameChange}
+          />
         </div>
       </Tabs>
     </div>

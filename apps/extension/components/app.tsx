@@ -7,12 +7,7 @@ import {
   type RankableStory,
 } from "@pulse/shared";
 import { Button } from "@pulse/ui/components/button";
-import {
-  Empty,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@pulse/ui/components/empty";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@pulse/ui/components/empty";
 import { Input } from "@pulse/ui/components/input";
 import { toast } from "@pulse/ui/components/sonner";
 import { Spinner } from "@pulse/ui/components/spinner";
@@ -449,11 +444,7 @@ export function App() {
           </div>
         )}
         {view === "feed" && (nextCursor || loadingMore) ? (
-          <div
-            ref={sentinelRef}
-            className="flex justify-center py-4"
-            aria-hidden={!loadingMore}
-          >
+          <div ref={sentinelRef} className="flex justify-center py-4" aria-hidden={!loadingMore}>
             {loadingMore ? <Spinner className="size-5" /> : null}
           </div>
         ) : null}

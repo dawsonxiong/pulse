@@ -65,6 +65,8 @@ export type StoryArticle = {
 
 export type StoryComment = {
   id: string;
+  /** Top-level comment this replies to; null for top-level comments. */
+  parentId: string | null;
   displayName: string;
   body: string;
   createdAt: string;
