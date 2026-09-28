@@ -78,7 +78,9 @@ function emptyCopy(
 
 export function App() {
   const [state, setState] = useState<LocalState | null>(null);
-  const [stories, setStories] = useState<FeedStory[]>([]);
+  // One entry per fetched page. Sorting happens within a page so loading more
+  // only appends and never reshuffles cards above the viewport.
+  const [pages, setPages] = useState<FeedStory[][]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [view, setView] = useState<"feed" | "reading-list">("feed");
@@ -104,7 +106,7 @@ export function App() {
     void loadState().then((loaded) => {
       if (cancelled) return;
       setState(loaded);
-      setStories(cachedOrFixture(loaded));
+      setPages([cachedOrFixture(loaded)]);
     });
     return () => {
       cancelled = true;
@@ -118,7 +120,7 @@ export function App() {
   const persistPage = useCallback((fresh: FeedStory[], cursor: string | null) => {
     nextCursorRef.current = cursor;
     setNextCursor(cursor);
-    setStories(fresh);
+    setPages([fresh]);
     setState((prev) => {
       if (!prev) return prev;
       const next = {
@@ -223,9 +225,10 @@ export function App() {
     try {
       const tags = tagKey.split(",").filter(Boolean);
       const page = await fetchFeed(tags, cursor);
-      setStories((prev) => {
-        const seen = new Set(prev.map((story) => story.id));
-        return [...prev, ...page.stories.filter((story) => !seen.has(story.id))];
+      setPages((prev) => {
+        const seen = new Set(prev.flat().map((story) => story.id));
+        const fresh = page.stories.filter((story) => !seen.has(story.id));
+        return fresh.length > 0 ? [...prev, fresh] : prev;
       });
       nextCursorRef.current = page.nextCursor;
       setNextCursor(page.nextCursor);
@@ -250,7 +253,7 @@ export function App() {
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [loadMore, nextCursor, stories.length, view]);
+  }, [loadMore, nextCursor, pages.length, view]);
 
   const voteMap = useMemo(
     () => new Map((state?.votes ?? []).map((vote) => [vote.storyId, vote.value])),
@@ -264,23 +267,22 @@ export function App() {
   const userTags = state?.tags;
   const sort = state?.sort ?? "latest";
 
-  const ranked = useMemo(() => {
-    if (!userTags) return [];
-    const items: Ranked[] = stories.map((story) => ({
-      id: story.id,
-      publishedAt: new Date(story.publishedAt),
-      tags: story.tags,
-      sourceAuthority: story.sourceAuthority,
-      upvotes: voteMap.get(story.id) === "up" ? 1 : 0,
-      story,
-    }));
-    return rankStories(items, userTags, new Date());
-  }, [stories, userTags, voteMap]);
-
   const ordered = useMemo(() => {
-    if (sort === "for-you") return ranked;
-    return [...ranked].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
-  }, [ranked, sort]);
+    if (!userTags) return [];
+    const now = new Date();
+    return pages.flatMap((page) => {
+      const items: Ranked[] = page.map((story) => ({
+        id: story.id,
+        publishedAt: new Date(story.publishedAt),
+        tags: story.tags,
+        sourceAuthority: story.sourceAuthority,
+        upvotes: voteMap.get(story.id) === "up" ? 1 : 0,
+        story,
+      }));
+      if (sort === "for-you") return rankStories(items, userTags, now);
+      return items.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+    });
+  }, [pages, sort, userTags, voteMap]);
 
   if (!state) {
     return (
@@ -357,7 +359,7 @@ export function App() {
       <main
         id="feed-main"
         ref={mainRef}
-        className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6"
+        className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6 [overflow-anchor:none]"
       >
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -443,8 +445,8 @@ export function App() {
             ))}
           </div>
         )}
-        {view === "feed" && (nextCursor || loadingMore) ? (
-          <div ref={sentinelRef} className="flex justify-center py-4" aria-hidden={!loadingMore}>
+        {view === "feed" && (nextCursor || loadingMore || visibleStories.length > 0) ? (
+          <div ref={sentinelRef} className="flex h-12 shrink-0 items-center justify-center">
             {loadingMore ? <Spinner className="size-5" /> : null}
           </div>
         ) : null}

@@ -114,7 +114,7 @@ export function FeedFilterButton({ filters, sources, onChange }: FeedFiltersProp
                     value={source.id}
                     className="w-full justify-start"
                   >
-                    <SourceIcon src={source.iconUrl} label={source.name} />
+                    <SourceIcon src={source.iconUrl} siteUrl={source.siteUrl} label={source.name} />
                     <span className="min-w-0 truncate">{source.name}</span>
                   </ToggleGroupItem>
                 ))}

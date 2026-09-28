@@ -1,5 +1,5 @@
 import { prisma } from "@pulse/db";
-import { fallbackIconUrls, iconCandidatesFromHtml } from "./parse-icon";
+import { fallbackIconUrls, iconPayloadOk, orderedIconCandidates } from "./parse-icon";
 
 const PAGE_TIMEOUT_MS = 8_000;
 const HEAD_TIMEOUT_MS = 2_500;
@@ -32,12 +32,6 @@ async function mapPool<T>(
   await Promise.all(Array.from({ length: workers }, () => worker()));
 }
 
-function isImageContentType(value: string | null): boolean {
-  if (!value) return false;
-  const type = value.toLowerCase();
-  return type.startsWith("image/") || type.includes("icon") || type.includes("svg");
-}
-
 async function isUsableIcon(url: string): Promise<boolean> {
   try {
     const response = await fetch(url, {
@@ -47,8 +41,11 @@ async function isUsableIcon(url: string): Promise<boolean> {
       headers: { "User-Agent": USER_AGENT, Accept: "image/*,*/*;q=0.8" },
     });
     if (!response.ok) return false;
-    if (isImageContentType(response.headers.get("content-type"))) return true;
-    return url.includes("google.com/s2/favicons");
+    const advertised = Number(response.headers.get("content-length") ?? "0");
+    if (advertised > 2_000_000) return false;
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength === 0 || bytes.byteLength > 2_000_000) return false;
+    return iconPayloadOk(bytes);
   } catch {
     return false;
   }
@@ -59,7 +56,6 @@ async function firstUsableIcon(urls: string[]): Promise<string | null> {
   for (const url of urls) {
     if (seen.has(url)) continue;
     seen.add(url);
-    if (url.includes("google.com/s2/favicons")) return url;
     if (await isUsableIcon(url)) return url;
   }
   return null;
@@ -78,8 +74,9 @@ async function discoverIcon(siteUrl: string): Promise<string | null> {
     });
     if (page.ok) {
       const html = await page.text();
-      const fromPage = iconCandidatesFromHtml(html, page.url || siteUrl).slice(0, 2);
-      const found = await firstUsableIcon([...fromPage, ...fallbacks]);
+      const found = await firstUsableIcon(
+        orderedIconCandidates(html, page.url || siteUrl, siteUrl).slice(0, 8),
+      );
       if (found) return found;
     }
   } catch {
@@ -91,7 +88,7 @@ async function discoverIcon(siteUrl: string): Promise<string | null> {
 export async function refreshSourceIcons(now = new Date()): Promise<IconRefreshResult> {
   const sources = await prisma.source.findMany({
     where: { active: true },
-    select: { id: true, siteUrl: true },
+    select: { id: true, siteUrl: true, iconUrl: true },
   });
 
   let updated = 0;
@@ -99,7 +96,7 @@ export async function refreshSourceIcons(now = new Date()): Promise<IconRefreshR
 
   await mapPool(sources, CONCURRENCY, async (source) => {
     try {
-      const iconUrl = await discoverIcon(source.siteUrl);
+      const iconUrl = (await discoverIcon(source.siteUrl)) ?? source.iconUrl;
       await prisma.source.update({
         where: { id: source.id },
         data: { iconUrl, iconFetchedAt: now },

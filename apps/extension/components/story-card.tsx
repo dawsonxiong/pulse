@@ -52,7 +52,7 @@ export const StoryCard = memo(function StoryCard({
   return (
     <Card
       size="sm"
-      className="h-full border border-border pt-0 ring-0 [content-visibility:auto] [contain-intrinsic-size:auto_24rem] hover:border-foreground/20"
+      className="h-full border border-border pt-0 ring-0 hover:border-foreground/20"
     >
       <button
         type="button"
@@ -64,6 +64,7 @@ export const StoryCard = memo(function StoryCard({
           key={image ?? "fallback"}
           src={image}
           iconUrl={story.representative.source.iconUrl}
+          siteUrl={story.representative.source.siteUrl}
           alt=""
           fallbackLabel={story.representative.source.name}
           priority={priority}
@@ -78,6 +79,7 @@ export const StoryCard = memo(function StoryCard({
         <CardDescription className="flex items-center gap-1.5 text-xs text-foreground/55">
           <SourceIcon
             src={story.representative.source.iconUrl}
+            siteUrl={story.representative.source.siteUrl}
             label={story.representative.source.name}
           />
           <span className="min-w-0 truncate">

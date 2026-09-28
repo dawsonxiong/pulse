@@ -120,7 +120,11 @@ function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBod
       <DialogHeader className="gap-2.5 px-6 pt-6 pb-4">
         <DialogTitle className="text-balance pr-8 leading-snug">{title}</DialogTitle>
         <DialogDescription className="flex items-center gap-2">
-          <SourceIcon src={post.source.iconUrl} label={post.source.name} />
+          <SourceIcon
+            src={post.source.iconUrl}
+            siteUrl={post.source.siteUrl}
+            label={post.source.name}
+          />
           <span>
             {post.source.name}
             <span aria-hidden="true"> · </span>
