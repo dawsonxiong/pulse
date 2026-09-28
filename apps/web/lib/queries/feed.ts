@@ -3,6 +3,7 @@ import {
   decodeHtmlEntities,
   displaySource,
   rankStories,
+  type FeedSort,
   scoreStory,
   usableStoryImage,
   type FeedPost,
@@ -131,6 +132,7 @@ export function decodeCursor(cursor: string | null): number {
 
 export async function listFeed(options: {
   tags: string[];
+  sort: FeedSort;
   cursor: string | null;
   now?: Date;
 }): Promise<{ stories: FeedStory[]; nextCursor: string | null }> {
@@ -154,7 +156,12 @@ export async function listFeed(options: {
     upvotes: 0,
   }));
 
-  const ranked = rankStories(rankable, options.tags, now);
+  const ranked =
+    options.sort === "latest"
+      ? rankable.sort(
+          (a, b) => b.publishedAt.getTime() - a.publishedAt.getTime() || a.id.localeCompare(b.id),
+        )
+      : rankStories(rankable, options.tags, now);
   const page = ranked.slice(offset, offset + PAGE_SIZE);
   const nextOffset = offset + PAGE_SIZE;
   const nextCursor = nextOffset < ranked.length ? encodeCursor(nextOffset) : null;

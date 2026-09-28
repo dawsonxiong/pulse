@@ -2,6 +2,7 @@ import {
   decorateFeedStory,
   decodeFeedStory,
   type FeedResponse,
+  type FeedSort,
   type FeedStory,
   type StoryArticle,
   type StoryComment,
@@ -21,9 +22,14 @@ export type FeedPage = {
   nextCursor: string | null;
 };
 
-export async function fetchFeed(tags: string[], cursor?: string | null): Promise<FeedPage> {
+export async function fetchFeed(
+  tags: string[],
+  sort: FeedSort,
+  cursor?: string | null,
+): Promise<FeedPage> {
   const params = new URLSearchParams();
   if (tags.length > 0) params.set("tags", tags.join(","));
+  params.set("sort", sort);
   if (cursor) params.set("cursor", cursor);
   const query = params.toString();
   const body = await getJson<FeedResponse>(`/api/feed${query ? `?${query}` : ""}`);

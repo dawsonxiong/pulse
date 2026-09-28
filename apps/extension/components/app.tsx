@@ -114,6 +114,11 @@ export function App() {
   }, []);
 
   const tagKey = state?.tags.join(",") ?? "";
+  const sort = state?.sort ?? "latest";
+  // Identifies which feed the loaded pages belong to, so a page that lands
+  // after the sort or tags change is dropped instead of appended.
+  const feedKey = `${sort}|${tagKey}`;
+  const feedKeyRef = useRef(feedKey);
 
   const onboarded = state?.onboarded ?? false;
 
@@ -135,8 +140,10 @@ export function App() {
   useEffect(() => {
     if (!onboarded) return;
     let cancelled = false;
+    feedKeyRef.current = `${sort}|${tagKey}`;
+    nextCursorRef.current = null;
     const tags = tagKey.split(",").filter(Boolean);
-    void fetchFeed(tags)
+    void fetchFeed(tags, sort)
       .then((page) => {
         if (cancelled) return;
         persistPage(page.stories, page.nextCursor);
@@ -147,7 +154,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [onboarded, persistPage, tagKey]);
+  }, [onboarded, persistPage, sort, tagKey]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -207,7 +214,7 @@ export function App() {
     if (!state || refreshing) return;
     setRefreshing(true);
     try {
-      const page = await fetchFeed(state.tags);
+      const page = await fetchFeed(state.tags, state.sort);
       persistPage(page.stories, page.nextCursor);
       toast.success("Feed updated", { id: "pulse-action" });
     } catch {
@@ -224,7 +231,8 @@ export function App() {
     setLoadingMore(true);
     try {
       const tags = tagKey.split(",").filter(Boolean);
-      const page = await fetchFeed(tags, cursor);
+      const page = await fetchFeed(tags, sort, cursor);
+      if (feedKeyRef.current !== feedKey) return;
       setPages((prev) => {
         const seen = new Set(prev.flat().map((story) => story.id));
         const fresh = page.stories.filter((story) => !seen.has(story.id));
@@ -238,7 +246,7 @@ export function App() {
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [tagKey]);
+  }, [feedKey, sort, tagKey]);
 
   useEffect(() => {
     if (view !== "feed" || !nextCursor) return;
@@ -265,7 +273,6 @@ export function App() {
   );
 
   const userTags = state?.tags;
-  const sort = state?.sort ?? "latest";
 
   const ordered = useMemo(() => {
     if (!userTags) return [];

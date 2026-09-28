@@ -1,4 +1,4 @@
-import { fixtureStories, type FeedResponse } from "@pulse/shared";
+import { FEED_SORTS, fixtureStories, type FeedResponse } from "@pulse/shared";
 import { z } from "zod";
 import { json, preflight } from "@/lib/cors";
 import { listFeed } from "@/lib/queries/feed";
@@ -16,6 +16,7 @@ const querySchema = z.object({
             .filter(Boolean)
         : [],
     ),
+  sort: z.enum(FEED_SORTS).default("for-you"),
   cursor: z.string().optional(),
 });
 
@@ -30,6 +31,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const parsed = querySchema.safeParse({
     tags: url.searchParams.get("tags") ?? undefined,
+    sort: url.searchParams.get("sort") ?? undefined,
     cursor: url.searchParams.get("cursor") ?? undefined,
   });
   if (!parsed.success) {
@@ -45,6 +47,7 @@ export async function GET(req: Request) {
   try {
     const { stories, nextCursor } = await listFeed({
       tags: parsed.data.tags,
+      sort: parsed.data.sort,
       cursor: parsed.data.cursor ?? null,
     });
     const body: FeedResponse = { stories, nextCursor };

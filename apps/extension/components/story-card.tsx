@@ -50,10 +50,7 @@ export const StoryCard = memo(function StoryCard({
   const image = storyImage(story);
 
   return (
-    <Card
-      size="sm"
-      className="h-full border border-border pt-0 ring-0 hover:border-foreground/20"
-    >
+    <Card size="sm" className="h-full border border-border pt-0 ring-0 hover:border-foreground/20">
       <button
         type="button"
         className="block w-full cursor-pointer border-0 bg-transparent p-0 text-left text-inherit outline-none focus-visible:ring-3 focus-visible:ring-ring/50"

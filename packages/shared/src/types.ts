@@ -35,6 +35,9 @@ export type FeedStory = {
   posts: FeedPost[];
 };
 
+export const FEED_SORTS = ["for-you", "latest"] as const;
+export type FeedSort = (typeof FEED_SORTS)[number];
+
 export type FeedResponse = {
   stories: FeedStory[];
   nextCursor: string | null;

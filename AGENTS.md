@@ -16,6 +16,7 @@ From the repo root. Secrets via `op run --account my.1password.com --env-file=.e
 |---|---|
 | Web/API dev | `pnpm --filter @pulse/web dev` (port 3000) |
 | Extension build | `pnpm --filter @pulse/extension build` → load `apps/extension/dist/chrome-mv3` (targets production API; set `WXT_API_URL` to override — `wxt` dev uses `localhost:3000`) |
+| Auto-rebuild extension on commit | `git config core.hooksPath .githooks` once per clone; `.githooks/post-commit` rebuilds `dist/chrome-mv3` in the background when a commit touches `apps/extension`, `packages/shared` or `packages/ui` (log: `.git/extension-build.log`) |
 | Extension typecheck | `pnpm --filter @pulse/extension typecheck` |
 | Lint / format | `pnpm lint` / `pnpm format` / `pnpm format:check` |
 | Typecheck / test | `pnpm typecheck` / `pnpm test` |

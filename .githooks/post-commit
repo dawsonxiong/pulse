@@ -1,0 +1,26 @@
+#!/bin/sh
+# Rebuild the unpacked extension after commits that touch it, so reloading
+# Pulse in chrome://extensions picks up the change. Runs in the background so
+# commits stay fast; output goes to .git/extension-build.log.
+
+changed=$(git diff-tree --root --no-commit-id --name-only -r HEAD -- apps/extension packages/shared packages/ui)
+[ -z "$changed" ] && exit 0
+
+root=$(git rev-parse --show-toplevel)
+log="$(git rev-parse --absolute-git-dir)/extension-build.log"
+
+notify() {
+  command -v osascript >/dev/null 2>&1 &&
+    osascript -e "display notification \"$1\" with title \"Pulse extension\"" >/dev/null 2>&1
+}
+
+(
+  cd "$root" || exit 1
+  if pnpm --filter @pulse/extension build >"$log" 2>&1; then
+    notify "Build ready. Reload Pulse in chrome://extensions."
+  else
+    notify "Build failed. See .git/extension-build.log."
+  fi
+) </dev/null >/dev/null 2>&1 &
+
+exit 0

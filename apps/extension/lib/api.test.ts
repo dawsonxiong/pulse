@@ -27,7 +27,7 @@ describe("fetchFeed", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const page = await fetchFeed(["postgres"]);
+    const page = await fetchFeed(["postgres"], "latest");
     expect(page.stories.map((story) => story.id)).toEqual(["a"]);
     expect(page.nextCursor).toBe("page-2");
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -36,11 +36,12 @@ describe("fetchFeed", () => {
   it("passes the cursor on later pages", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       expect(String(input)).toContain("cursor=page-2");
+      expect(String(input)).toContain("sort=for-you");
       return Response.json({ stories: [], nextCursor: null });
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const page = await fetchFeed(["postgres"], "page-2");
+    const page = await fetchFeed(["postgres"], "for-you", "page-2");
     expect(page.nextCursor).toBeNull();
   });
 });

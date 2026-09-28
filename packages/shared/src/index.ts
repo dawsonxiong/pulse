@@ -27,10 +27,12 @@ export {
   tagMatch,
 } from "./ranking";
 export { TAG_BY_SLUG, TAG_CATALOG, tagsFromTitle } from "./tags";
+export { FEED_SORTS } from "./types";
 export type {
   ClusterCandidate,
   FeedPost,
   FeedResponse,
+  FeedSort,
   FeedSource,
   FeedStory,
   RankableStory,
