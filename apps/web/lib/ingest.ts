@@ -9,7 +9,8 @@ import {
   tagsFromTitle,
   usableStoryImage,
 } from "@pulse/shared";
-import { parseFeedXml } from "./parse-feed";
+import { fetchArticlePage } from "./extract-article";
+import { parseFeedXml, publishedDateFromHtml } from "./parse-feed";
 
 const FEED_TIMEOUT_MS = 8_000;
 const PROCESS_DEADLINE_MS = 55_000;
@@ -32,6 +33,7 @@ export type IngestResult = {
   claimed: number;
   expanded: number;
   timedOut: number;
+  redated: number;
   errors: IngestError[];
 };
 
@@ -107,8 +109,32 @@ const postLookupSelect = {
   canonicalUrl: true,
   title: true,
   imageUrl: true,
+  publishedAt: true,
+  createdAt: true,
   source: { select: { id: true, siteUrl: true } },
+  storyPosts: { select: { storyId: true } },
 } as const;
+
+const INGEST_STAMP_TOLERANCE_MS = 5 * 60 * 1000;
+
+function notAfter(date: Date, limit: Date): Date {
+  return date > limit ? limit : date;
+}
+
+// An undated feed item was stored with the ingest time as its publish date.
+function stampedWithIngestTime(post: { publishedAt: Date; createdAt: Date }): boolean {
+  return (
+    Math.abs(post.publishedAt.getTime() - post.createdAt.getTime()) < INGEST_STAMP_TOLERANCE_MS
+  );
+}
+
+async function pageDate(url: string): Promise<Date | null> {
+  try {
+    return publishedDateFromHtml(await fetchArticlePage(url));
+  } catch {
+    return null;
+  }
+}
 
 function pickRepresentative(
   posts: {
@@ -188,6 +214,7 @@ async function ingestFeeds(now = new Date()): Promise<IngestResult> {
     claimed: 0,
     expanded: 0,
     timedOut: 0,
+    redated: 0,
     errors: [],
   };
 
@@ -260,38 +287,55 @@ async function ingestFeeds(now = new Date()): Promise<IngestResult> {
         .slice(0, MAX_ITEMS_PER_FEED);
       const sourceTagSlugs = outcome.source.sourceTags.map((row) => row.tagSlug);
 
-      for (const item of items) {
+      // Resolve URLs in parallel, then load every known post for this feed in
+      // one query. A lookup per item blew the cron budget, leaving sources stale.
+      const resolved = await mapPool(items, FETCH_CONCURRENCY, async (item) => {
         const unresolved =
           resolveHttpUrl(item.url, outcome.source.rssUrl) ?? resolveHttpUrl(item.url);
-        if (!unresolved) {
-          result.skippedBadUrl += 1;
-          continue;
-        }
+        if (!unresolved) return null;
         const followed = await followShortUrl(unresolved);
         const absolute = resolveHttpUrl(followed) ?? unresolved;
         const canonical = canonicalizeUrl(absolute);
-        const feedCanonical = canonicalizeUrl(unresolved);
-        if (!canonical) {
-          result.skippedBadUrl += 1;
-          continue;
-        }
-        const publishedAt = item.publishedAt ?? now;
+        if (!canonical) return null;
+        return { item, absolute, canonical, feedCanonical: canonicalizeUrl(unresolved) };
+      });
+      const entries = resolved.filter((entry) => entry !== null);
+      result.skippedBadUrl += resolved.length - entries.length;
+
+      const lookupUrls = new Set<string>();
+      for (const entry of entries) {
+        lookupUrls.add(entry.canonical);
+        if (entry.feedCanonical) lookupUrls.add(entry.feedCanonical);
+      }
+      const known = await prisma.post.findMany({
+        where: { canonicalUrl: { in: [...lookupUrls] } },
+        select: postLookupSelect,
+      });
+      const byCanonical = new Map(known.map((post) => [post.canonicalUrl, post]));
+      const findKnown = (entry: (typeof entries)[number]) =>
+        byCanonical.get(entry.canonical) ??
+        (entry.feedCanonical ? byCanonical.get(entry.feedCanonical) : undefined);
+
+      const pageDates = new Map<string, Date>();
+      const undated = entries.filter((entry) => {
+        if (entry.item.publishedAt) return false;
+        const existing = findKnown(entry);
+        return !existing || stampedWithIngestTime(existing);
+      });
+      await mapPool(undated, FETCH_CONCURRENCY, async (entry) => {
+        const date = await pageDate(entry.absolute);
+        if (date) pageDates.set(entry.canonical, date);
+      });
+
+      for (const entry of entries) {
+        const { item, absolute, canonical } = entry;
+        const publishedAt = notAfter(item.publishedAt ?? pageDates.get(canonical) ?? now, now);
         if (now.getTime() - publishedAt.getTime() > MAX_AGE_MS) {
           result.skippedOld += 1;
           continue;
         }
 
-        const existing =
-          (await prisma.post.findUnique({
-            where: { canonicalUrl: canonical },
-            select: postLookupSelect,
-          })) ??
-          (feedCanonical && feedCanonical !== canonical
-            ? await prisma.post.findUnique({
-                where: { canonicalUrl: feedCanonical },
-                select: postLookupSelect,
-              })
-            : null);
+        const existing = findKnown(entry);
         const imageUrl = usableStoryImage(
           item.imageUrl ? resolveHttpUrl(item.imageUrl, outcome.source.rssUrl) : null,
         );
@@ -302,6 +346,7 @@ async function ingestFeeds(now = new Date()): Promise<IngestResult> {
             sourceId?: string;
             url?: string;
             canonicalUrl?: string;
+            publishedAt?: Date;
           } = {};
           if (existing.imageUrl !== imageUrl) data.imageUrl = imageUrl;
           if (existing.title !== item.title) data.title = item.title;
@@ -314,12 +359,16 @@ async function ingestFeeds(now = new Date()): Promise<IngestResult> {
               result.expanded += 1;
             }
           }
-          if (existing.canonicalUrl !== canonical) {
-            const conflict = await prisma.post.findUnique({
-              where: { canonicalUrl: canonical },
-              select: { id: true },
-            });
-            if (!conflict) data.canonicalUrl = canonical;
+          if (existing.canonicalUrl !== canonical && !byCanonical.has(canonical)) {
+            data.canonicalUrl = canonical;
+            byCanonical.set(canonical, existing);
+          }
+          // Future-dated posts (HashiCorp dates posts by tomorrow's midnight) and
+          // undated posts stamped with an old ingest time get their real date.
+          const correctedDate =
+            existing.publishedAt > now || (pageDates.has(canonical) && !item.publishedAt);
+          if (correctedDate && existing.publishedAt.getTime() !== publishedAt.getTime()) {
+            data.publishedAt = publishedAt;
           }
           const postHost = hostnameFromUrl(data.url ?? existing.url);
           const incomingHost = hostnameFromUrl(outcome.source.siteUrl);
@@ -339,6 +388,10 @@ async function ingestFeeds(now = new Date()): Promise<IngestResult> {
               data,
               select: { id: true },
             });
+          }
+          if (data.publishedAt) {
+            for (const { storyId } of existing.storyPosts) await refreshStory(storyId);
+            result.redated += 1;
           }
           continue;
         }
@@ -362,8 +415,9 @@ async function ingestFeeds(now = new Date()): Promise<IngestResult> {
               create: tagSlugs.map((tagSlug) => ({ tagSlug })),
             },
           },
-          select: { id: true },
+          select: postLookupSelect,
         });
+        byCanonical.set(canonical, post);
         result.inserted += 1;
 
         const matchId = findMatchingStory(item.title, publishedAt, candidates, now);

@@ -198,6 +198,24 @@ export function ogImageFromHtml(html: string): string | null {
   return null;
 }
 
+// For feeds whose items carry no date (e.g. Google Developers Blog), read the
+// publish date from the article page instead of stamping the ingest time.
+export function publishedDateFromHtml(html: string): Date | null {
+  const slice = html.slice(0, 300_000);
+  const patterns = [
+    /<meta[^>]+property=["']article:published_time["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']article:published_time["'][^>]*>/i,
+    /"datePublished"\s*:\s*"([^"]+)"/i,
+    /<meta[^>]+itemprop=["']datePublished["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+    /<time[^>]+datetime=["']([^"']+)["'][^>]*>/i,
+  ];
+  for (const pattern of patterns) {
+    const date = parseDate(slice.match(pattern)?.[1] ?? null);
+    if (date) return date;
+  }
+  return null;
+}
+
 export function parseFeedXml(xml: string): ParsedFeedItem[] {
   const doc = parser.parse(xml) as Record<string, unknown>;
   const rssChannel = (doc.rss as { channel?: Record<string, unknown> } | undefined)?.channel;

@@ -6,6 +6,10 @@
 changed=$(git diff-tree --root --no-commit-id --name-only -r HEAD -- apps/extension packages/shared packages/ui)
 [ -z "$changed" ] && exit 0
 
+# GUI git clients run hooks without the login shell's PATH.
+PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/Library/pnpm:$PATH"
+export PATH
+
 root=$(git rev-parse --show-toplevel)
 log="$(git rev-parse --absolute-git-dir)/extension-build.log"
 

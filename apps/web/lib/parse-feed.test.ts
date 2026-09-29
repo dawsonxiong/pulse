@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ogImageFromHtml, parseFeedXml } from "./parse-feed";
+import { ogImageFromHtml, parseFeedXml, publishedDateFromHtml } from "./parse-feed";
 
 const rss = `<?xml version="1.0"?>
 <rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -76,5 +76,22 @@ describe("ogImageFromHtml", () => {
       <meta content="https://storage.googleapis.com/blog/hero.jpg" property="og:image" />
     </head></html>`;
     expect(ogImageFromHtml(html)).toBe("https://storage.googleapis.com/blog/hero.jpg");
+  });
+});
+
+describe("publishedDateFromHtml", () => {
+  it("prefers article:published_time", () => {
+    const html = `<meta content="2026-09-24T15:30:00Z" property="article:published_time" />
+      <script type="application/ld+json">{"datePublished": "2026-09-20"}</script>`;
+    expect(publishedDateFromHtml(html)?.toISOString()).toBe("2026-09-24T15:30:00.000Z");
+  });
+
+  it("falls back to JSON-LD datePublished", () => {
+    const html = `<script type="application/ld+json">{"@type": "BlogPosting", "datePublished": "2026-09-24"}</script>`;
+    expect(publishedDateFromHtml(html)?.toISOString()).toBe("2026-09-24T00:00:00.000Z");
+  });
+
+  it("returns null when the page has no date", () => {
+    expect(publishedDateFromHtml("<html><body>No dates</body></html>")).toBeNull();
   });
 });

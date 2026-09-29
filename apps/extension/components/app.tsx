@@ -119,6 +119,9 @@ export function App() {
   // after the sort or tags change is dropped instead of appended.
   const feedKey = `${sort}|${tagKey}`;
   const feedKeyRef = useRef(feedKey);
+  // The feed whose first page has arrived (or failed). Until it matches
+  // `feedKey`, cached stories are showing and there's no cursor to page from.
+  const [settledFeedKey, setSettledFeedKey] = useState<string | null>(null);
 
   const onboarded = state?.onboarded ?? false;
 
@@ -140,16 +143,20 @@ export function App() {
   useEffect(() => {
     if (!onboarded) return;
     let cancelled = false;
-    feedKeyRef.current = `${sort}|${tagKey}`;
+    const key = `${sort}|${tagKey}`;
+    feedKeyRef.current = key;
     nextCursorRef.current = null;
     const tags = tagKey.split(",").filter(Boolean);
     void fetchFeed(tags, sort)
       .then((page) => {
         if (cancelled) return;
         persistPage(page.stories, page.nextCursor);
+        setSettledFeedKey(key);
       })
       .catch(() => {
-        if (!cancelled) toast.error("Couldn't refresh the feed");
+        if (cancelled) return;
+        setSettledFeedKey(key);
+        toast.error("Couldn't refresh the feed");
       });
     return () => {
       cancelled = true;
@@ -339,6 +346,7 @@ export function App() {
   const searching = query.trim().length > 0;
   const filtering = filtersActive(filters);
   const empty = emptyCopy(view, searching, filtering);
+  const feedPending = settledFeedKey !== feedKey;
 
   return (
     <div className="pulse-glow flex h-full bg-background">
@@ -454,7 +462,7 @@ export function App() {
         )}
         {view === "feed" && (nextCursor || loadingMore || visibleStories.length > 0) ? (
           <div ref={sentinelRef} className="flex h-12 shrink-0 items-center justify-center">
-            {loadingMore ? <Spinner className="size-5" /> : null}
+            {loadingMore || feedPending ? <Spinner className="size-5" /> : null}
           </div>
         ) : null}
       </main>
