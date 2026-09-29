@@ -6,7 +6,10 @@ export type ParsedFeedItem = {
   title: string;
   author: string | null;
   excerpt: string | null;
+  // Declared by the feed (enclosure, media:*, itunes:image, <image>).
   imageUrl: string | null;
+  // First <img> in the item body — often a diagram, not the article's hero.
+  inlineImageUrl: string | null;
   publishedAt: Date | null;
 };
 
@@ -172,7 +175,12 @@ function imageFromItem(item: Record<string, unknown>): string | null {
     attrUrl(item["media:content"]) ??
     (group ? (attrUrl(group["media:thumbnail"]) ?? attrUrl(group["media:content"])) : null) ??
     attrUrl(item["itunes:image"]) ??
-    imageElement(item.image) ??
+    imageElement(item.image)
+  );
+}
+
+function inlineImageFromItem(item: Record<string, unknown>): string | null {
+  return (
     imageFromHtml(asText(item["content:encoded"])) ??
     imageFromHtml(asText(item.content)) ??
     imageFromHtml(asText(item.description)) ??
@@ -252,7 +260,15 @@ export function parseFeedXml(xml: string): ParsedFeedItem[] {
         asText(item["dc:date"]),
     );
 
-    parsed.push({ url, title, author, excerpt, imageUrl: imageFromItem(item), publishedAt });
+    parsed.push({
+      url,
+      title,
+      author,
+      excerpt,
+      imageUrl: imageFromItem(item),
+      inlineImageUrl: inlineImageFromItem(item),
+      publishedAt,
+    });
   }
 
   return parsed;

@@ -36,9 +36,10 @@ describe("parseFeedXml", () => {
     expect(items[0]?.imageUrl).toContain("rust-social-wide");
   });
 
-  it("reads an image from entity-encoded HTML in description", () => {
+  it("reads an inline image from entity-encoded HTML in description", () => {
     const items = parseFeedXml(encodedHtmlRss);
-    expect(items[0]?.imageUrl).toBe("https://cdn.example.com/hero.png");
+    expect(items[0]?.imageUrl).toBeNull();
+    expect(items[0]?.inlineImageUrl).toBe("https://cdn.example.com/hero.png");
   });
 
   it("decodes numeric HTML entities in titles", () => {

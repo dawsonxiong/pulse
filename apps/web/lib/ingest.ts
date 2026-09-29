@@ -10,7 +10,7 @@ import {
   usableStoryImage,
 } from "@pulse/shared";
 import { fetchArticlePage } from "./extract-article";
-import { parseFeedXml, publishedDateFromHtml } from "./parse-feed";
+import { ogImageFromHtml, parseFeedXml, publishedDateFromHtml } from "./parse-feed";
 
 const FEED_TIMEOUT_MS = 8_000;
 const PROCESS_DEADLINE_MS = 55_000;
@@ -128,9 +128,16 @@ function stampedWithIngestTime(post: { publishedAt: Date; createdAt: Date }): bo
   );
 }
 
-async function pageDate(url: string): Promise<Date | null> {
+type PageMeta = { date: Date | null; imageUrl: string | null };
+
+async function pageMeta(url: string): Promise<PageMeta | null> {
   try {
-    return publishedDateFromHtml(await fetchArticlePage(url));
+    const html = await fetchArticlePage(url);
+    const og = ogImageFromHtml(html);
+    return {
+      date: publishedDateFromHtml(html),
+      imageUrl: usableStoryImage(og ? resolveHttpUrl(og, url) : null),
+    };
   } catch {
     return null;
   }
@@ -316,29 +323,41 @@ async function ingestFeeds(now = new Date()): Promise<IngestResult> {
         byCanonical.get(entry.canonical) ??
         (entry.feedCanonical ? byCanonical.get(entry.feedCanonical) : undefined);
 
-      const pageDates = new Map<string, Date>();
-      const undated = entries.filter((entry) => {
-        if (entry.item.publishedAt) return false;
+      const feedImage = (raw: string | null) =>
+        usableStoryImage(raw ? resolveHttpUrl(raw, outcome.source.rssUrl) : null);
+
+      // Fetch the article page for a missing date, or for the og:image when the
+      // feed declares no image. The first <img> in the body is only a fallback;
+      // it is often a diagram rather than the article's hero.
+      const pages = new Map<string, PageMeta>();
+      const needsPage = entries.filter((entry) => {
+        const { item } = entry;
         const existing = findKnown(entry);
-        return !existing || stampedWithIngestTime(existing);
+        if (!item.publishedAt) return !existing || stampedWithIngestTime(existing);
+        if (now.getTime() - item.publishedAt.getTime() > MAX_AGE_MS) return false;
+        if (feedImage(item.imageUrl)) return false;
+        if (!existing) return true;
+        return !existing.imageUrl || existing.imageUrl === feedImage(item.inlineImageUrl);
       });
-      await mapPool(undated, FETCH_CONCURRENCY, async (entry) => {
-        const date = await pageDate(entry.absolute);
-        if (date) pageDates.set(entry.canonical, date);
+      await mapPool(needsPage, FETCH_CONCURRENCY, async (entry) => {
+        const meta = await pageMeta(entry.absolute);
+        if (meta) pages.set(entry.canonical, meta);
       });
 
       for (const entry of entries) {
         const { item, absolute, canonical } = entry;
-        const publishedAt = notAfter(item.publishedAt ?? pageDates.get(canonical) ?? now, now);
+        const page = pages.get(canonical);
+        const pageDate = item.publishedAt ? null : (page?.date ?? null);
+        const sourceDate = item.publishedAt ?? pageDate ?? now;
+        const publishedAt = notAfter(sourceDate, now);
         if (now.getTime() - publishedAt.getTime() > MAX_AGE_MS) {
           result.skippedOld += 1;
           continue;
         }
 
         const existing = findKnown(entry);
-        const imageUrl = usableStoryImage(
-          item.imageUrl ? resolveHttpUrl(item.imageUrl, outcome.source.rssUrl) : null,
-        );
+        const declaredImage = feedImage(item.imageUrl) ?? page?.imageUrl ?? null;
+        const imageUrl = declaredImage ?? feedImage(item.inlineImageUrl);
         if (existing) {
           const data: {
             imageUrl?: string | null;
@@ -348,7 +367,9 @@ async function ingestFeeds(now = new Date()): Promise<IngestResult> {
             canonicalUrl?: string;
             publishedAt?: Date;
           } = {};
-          if (existing.imageUrl !== imageUrl) data.imageUrl = imageUrl;
+          // Never swap a stored og:image for an inline fallback or for nothing.
+          const nextImage = declaredImage ?? existing.imageUrl ?? imageUrl;
+          if (existing.imageUrl !== nextImage) data.imageUrl = nextImage;
           if (existing.title !== item.title) data.title = item.title;
           if (existing.url !== absolute) {
             data.url = absolute;
@@ -363,12 +384,17 @@ async function ingestFeeds(now = new Date()): Promise<IngestResult> {
             data.canonicalUrl = canonical;
             byCanonical.set(canonical, existing);
           }
-          // Future-dated posts (HashiCorp dates posts by tomorrow's midnight) and
-          // undated posts stamped with an old ingest time get their real date.
-          const correctedDate =
-            existing.publishedAt > now || (pageDates.has(canonical) && !item.publishedAt);
-          if (correctedDate && existing.publishedAt.getTime() !== publishedAt.getTime()) {
-            data.publishedAt = publishedAt;
+          // A post cannot be published after we first saw it. Atom feeds with
+          // only <updated> (HashiCorp) move items forward when edited, and used
+          // to be stored future-dated. Undated posts stamped with an old ingest
+          // time get the date read from their page.
+          const firstSeen = existing.createdAt;
+          const datedAfterFirstSeen =
+            existing.publishedAt.getTime() - firstSeen.getTime() > INGEST_STAMP_TOLERANCE_MS;
+          const correctedDate = datedAfterFirstSeen || pageDate !== null;
+          const redate = notAfter(sourceDate, firstSeen);
+          if (correctedDate && existing.publishedAt.getTime() !== redate.getTime()) {
+            data.publishedAt = redate;
           }
           const postHost = hostnameFromUrl(data.url ?? existing.url);
           const incomingHost = hostnameFromUrl(outcome.source.siteUrl);
