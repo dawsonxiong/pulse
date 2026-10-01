@@ -150,8 +150,8 @@ export const SEED_SOURCES: readonly SeedSource[] = [
   {
     slug: "neon",
     name: "Neon Blog",
-    siteUrl: "https://neon.tech/blog",
-    rssUrl: "https://neon.tech/blog/rss.xml",
+    siteUrl: "https://neon.com/blog",
+    rssUrl: "https://neon.com/blog/rss.xml",
     authorityScore: 0.82,
     tags: ["postgres", "databases"],
   },
