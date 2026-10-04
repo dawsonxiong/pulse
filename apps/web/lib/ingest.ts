@@ -13,7 +13,7 @@ import { fetchArticlePage } from "./extract-article";
 import { ogImageFromHtml, parseFeedXml, publishedDateFromHtml } from "./parse-feed";
 
 const FEED_TIMEOUT_MS = 8_000;
-const PROCESS_DEADLINE_MS = 55_000;
+const PROCESS_DEADLINE_MS = 280_000;
 const FETCH_CONCURRENCY = 8;
 const MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const CLUSTER_WINDOW_MS = 48 * 60 * 60 * 1000;
