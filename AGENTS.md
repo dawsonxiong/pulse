@@ -36,7 +36,7 @@ Inherits the `next16-app` house skill. Only what differs or is pinned here:
 - Turborepo (`apps/web`, `apps/extension`; `packages/shared`, `packages/db`, `packages/ui`)
 - shadcn/ui **base-nova** on Base UI primitives in `@pulse/ui`. Do not invent a parallel component set.
 - Better Auth is **not** in v1
-- Upstash Redis + `@upstash/ratelimit` on public API routes when configured; without Upstash, `enforce` no-ops. Cron requires `CRON_SECRET`
+- Upstash Redis (Vercel Marketplace integration, `KV_REST_API_*`; `UPSTASH_REDIS_REST_*` also works) + `@upstash/ratelimit` on public API routes. Without Redis, `enforce` no-ops, but `enforceChat` fails closed in production. Cron requires `CRON_SECRET`
 - Vitest for `packages/shared`; Playwright for `apps/web` landing + API smoke
 - Secrets: 1Password vault **`pulse`**, via `op run --account my.1password.com --env-file=.env.op -- <cmd>`
   - `op://pulse/Supabase/DATABASE_URL`
@@ -51,7 +51,7 @@ Inherits the `next16-app` house skill. Only what differs or is pinned here:
 - **Stories, not posts, are the feed unit.** Clustering is URL canonicalization + title Jaccard (≥ 0.72 and ≥ 2 overlapping tokens within 48 hours). Not pgvector in v1.
 - **Independent blogs with a real RSS URL are first-class sources.** No Squads-only ghetto.
 - **API routes over server actions.** Zod-validate at every HTTP boundary.
-- **Every public API route goes through `lib/rate-limit.ts`'s `enforce(req, limiter)`.** Cron routes additionally require `requireCronSecret(req)`.
+- **Every public API route goes through `lib/rate-limit.ts`'s `enforce(req, limiter)`.** Routes that call a model use `enforceChat(req)` (per-IP minute/day caps plus a global daily budget). Cron routes additionally require `requireCronSecret(req)`.
 - **CORS allows `chrome-extension://*` and the site origin.** The extension is the primary client.
 - **No `<all_urls>`, no `tabs`, no content scripts.** Extension permissions are `storage` + the API host only.
 - **`packages/shared` stays pure** — no I/O, no DB, no network, no Chrome APIs. Pass `now` into ranking/clustering.
