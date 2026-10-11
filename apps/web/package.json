@@ -12,7 +12,6 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.133.0",
     "@mozilla/readability": "^0.6.0",
     "@pulse/db": "workspace:*",
     "@pulse/shared": "workspace:*",
@@ -22,6 +21,7 @@
     "fast-xml-parser": "^5.2.5",
     "linkedom": "^0.18.13",
     "next": "16.2.6",
+    "openai": "^7.32.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "^0.0.1",

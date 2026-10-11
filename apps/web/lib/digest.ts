@@ -1,12 +1,12 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import OpenAI from "openai";
+import { zodTextFormat } from "openai/helpers/zod";
 import { prisma, type Prisma } from "@pulse/db";
 import { sanitizeDigestItems, type Digest, type DigestItem, type FeedStory } from "@pulse/shared";
 import { z } from "zod";
 import { listFeed } from "./queries/feed";
 
-const DIGEST_MODEL = "claude-opus-5-5";
+const DIGEST_MODEL = "gpt-6-luna";
 const DIGEST_STORY_COUNT = 20;
 const EXCERPT_CHARS = 400;
 /** A digest older than this is stale; the strip hides rather than show yesterday's news. */
@@ -46,29 +46,24 @@ function storyBlock(story: FeedStory): string {
     .join("\n");
 }
 
-async function summarize(client: Anthropic, stories: FeedStory[]): Promise<DigestItem[]> {
-  const response = await client.beta.messages.parse({
+async function summarize(client: OpenAI, stories: FeedStory[]): Promise<DigestItem[]> {
+  const response = await client.responses.parse({
     model: DIGEST_MODEL,
-    max_tokens: 16000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    output_config: { effort: "medium", format: betaZodOutputFormat(outputSchema) },
-    system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: `<stories>\n${stories.map(storyBlock).join("\n\n")}\n</stories>`,
-      },
-    ],
+    reasoning: { effort: "medium" },
+    instructions: SYSTEM_PROMPT,
+    input: `<stories>\n${stories.map(storyBlock).join("\n\n")}\n</stories>`,
+    text: { format: zodTextFormat(outputSchema, "digest") },
   });
 
-  if (response.stop_reason === "refusal") {
-    throw new Error(`digest refused: ${response.stop_details?.category ?? "unknown"}`);
+  if (response.status !== "completed") {
+    throw new Error(
+      `digest ${response.status ?? "failed"}: ${response.incomplete_details?.reason ?? "unknown"}`,
+    );
   }
-  if (!response.parsed_output) {
-    throw new Error(`digest output did not parse (stop_reason ${response.stop_reason})`);
+  if (!response.output_parsed) {
+    throw new Error("digest output did not parse (refused or empty)");
   }
-  return response.parsed_output.items;
+  return response.output_parsed.items;
 }
 
 export type GenerateDigestResult =
@@ -76,14 +71,14 @@ export type GenerateDigestResult =
   | { status: "created"; id: string; items: number };
 
 export async function generateDigest(now = new Date()): Promise<GenerateDigestResult> {
-  if (!process.env.ANTHROPIC_API_KEY)
-    return { status: "skipped", reason: "ANTHROPIC_API_KEY is not set" };
+  if (!process.env.OPENAI_API_KEY)
+    return { status: "skipped", reason: "OPENAI_API_KEY is not set" };
 
   const { stories } = await listFeed({ tags: [], sort: "for-you", cursor: null, now });
   const top = stories.slice(0, DIGEST_STORY_COUNT);
   if (top.length === 0) return { status: "skipped", reason: "no stories" };
 
-  const raw = await summarize(new Anthropic(), top);
+  const raw = await summarize(new OpenAI(), top);
   const items = sanitizeDigestItems(
     raw,
     top.map((story) => story.id),

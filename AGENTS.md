@@ -23,7 +23,7 @@ From the repo root. Secrets via `op run --account my.1password.com --env-file=.e
 | Generate Prisma client | `pnpm db:generate` |
 | Migrate (you apply) | `pnpm db:migrate` against `DIRECT_URL` |
 | Seed RSS sources | `pnpm db:seed` |
-| Generate the daily AI brief | `GET /api/cron/digest` with `Authorization: Bearer $CRON_SECRET` (daily on Vercel, after ingest; skips without `ANTHROPIC_API_KEY`) |
+| Generate the daily AI brief | `GET /api/cron/digest` with `Authorization: Bearer $CRON_SECRET` (daily on Vercel, after ingest; skips without `OPENAI_API_KEY`) |
 | Refresh source icons | `GET /api/cron/icons` with `Authorization: Bearer $CRON_SECRET` (daily on Vercel) |
 
 ## Stack — do not swap without asking
@@ -42,7 +42,7 @@ Inherits the `next16-app` house skill. Only what differs or is pinned here:
   - `op://pulse/Supabase/DATABASE_URL`
   - `op://pulse/Supabase/DIRECT_URL`
   - `op://pulse/Supabase/CRON_SECRET`
-  - `ANTHROPIC_API_KEY` (Vercel env) enables the daily AI brief; add an `op://pulse/Anthropic/...` ref only once that item exists
+  - `op://Private/3acisiioz3j3u76jpbos7kkizq/OPENAI_DAWSON_API_KEY` → `OPENAI_API_KEY` (daily AI brief, `gpt-6-luna`; by item ID because two Private items are titled OpenAI)
   - Upstash is optional; do not add `op://` refs until the `Upstash` item exists or `op run` fails
 
 ## Hard rules
