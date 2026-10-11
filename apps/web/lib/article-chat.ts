@@ -9,6 +9,7 @@ const CHAT_MODEL = "gpt-6-luna";
 /** Roughly 20k tokens; long enough for nearly any post, bounded so one question stays cheap. */
 const ARTICLE_MAX_CHARS = 80_000;
 const MAX_OUTPUT_TOKENS = 1_000;
+/** No retry: a failed answer is cheaper to re-ask than to wait out, and stays under maxDuration. */
 const OPENAI_TIMEOUT_MS = 60_000;
 
 const INSTRUCTIONS = `You answer a developer's questions about one article from Pulse, a developer news feed.
@@ -33,6 +34,7 @@ export async function loadArticleContext(
       OR: [{ storyPosts: { some: { storyId } } }, { representativeOf: { some: { id: storyId } } }],
     },
     select: {
+      id: true,
       url: true,
       title: true,
       excerpt: true,
@@ -45,7 +47,20 @@ export async function loadArticleContext(
   let text = post.extractedText;
   if (!text && isPublicHttpUrl(post.url)) {
     try {
-      text = extractArticleHtml(await fetchArticlePage(post.url), post.url)?.text ?? null;
+      const extracted = extractArticleHtml(await fetchArticlePage(post.url), post.url);
+      if (extracted) {
+        text = extracted.text;
+        // Cache it like the Article tab does, so follow-up questions skip the fetch.
+        await prisma.post.update({
+          where: { id: post.id },
+          data: {
+            extractedHtml: extracted.html,
+            extractedText: extracted.text,
+            extractedAt: new Date(),
+          },
+          select: { id: true },
+        });
+      }
     } catch (err) {
       console.error(err);
     }
@@ -67,7 +82,7 @@ export async function streamArticleAnswer(
   messages: ChatMessage[],
   signal: AbortSignal,
 ): Promise<ReadableStream<Uint8Array>> {
-  const client = new OpenAI({ timeout: OPENAI_TIMEOUT_MS, maxRetries: 1 });
+  const client = new OpenAI({ timeout: OPENAI_TIMEOUT_MS, maxRetries: 0 });
   const events = await client.responses.create(
     {
       model: CHAT_MODEL,
@@ -75,8 +90,9 @@ export async function streamArticleAnswer(
       max_output_tokens: MAX_OUTPUT_TOKENS,
       instructions: INSTRUCTIONS,
       input: [
+        // Third-party text goes in as user content; developer messages carry more authority.
         {
-          role: "developer",
+          role: "user",
           content: `<article>\ntitle: ${article.title}\nsource: ${article.source}\nurl: ${article.url}\n\n${article.text}\n</article>`,
         },
         ...messages.map((message) => ({ role: message.role, content: message.content })),

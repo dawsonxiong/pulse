@@ -26,7 +26,7 @@ import { AlertCircle, ExternalLink, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchStoryArticle } from "../lib/api";
 import { relativeTime } from "../lib/time";
-import { ArticleChat } from "./article-chat";
+import { ArticleChat, useArticleChat } from "./article-chat";
 import { CommentsSection } from "./comments-section";
 import { SourceIcon } from "./source-icon";
 
@@ -88,6 +88,7 @@ type ReaderBodyProps = {
 
 function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBodyProps) {
   const [tab, setTab] = useState("summary");
+  const chat = useArticleChat(story.id, post.id);
   const [article, setArticle] = useState<StoryArticle | null>(null);
   const [articleError, setArticleError] = useState(false);
 
@@ -211,7 +212,7 @@ function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBod
             )}
           </TabsContent>
           <TabsContent value="ask" className="flex min-h-full flex-col px-6 pt-5 pb-3">
-            <ArticleChat storyId={story.id} postId={post.id} />
+            <ArticleChat chat={chat} />
           </TabsContent>
           {tab === "ask" ? null : (
             <CommentsSection

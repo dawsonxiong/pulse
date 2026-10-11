@@ -18,24 +18,30 @@ function errorCopy(err: unknown): string {
   return "Something went wrong. Try asking again.";
 }
 
-type ArticleChatProps = { storyId: string; postId: string };
 type UiMessage = ChatMessage & { id: number };
 
-/** "Ask" tab of the reader. History lives only while the reader is open. */
-export function ArticleChat({ storyId, postId }: ArticleChatProps) {
+export type ArticleChatState = {
+  messages: UiMessage[];
+  streaming: boolean;
+  error: string | null;
+  atLimit: boolean;
+  ask: (question: string) => void;
+  stop: () => void;
+};
+
+/**
+ * Chat state for one open article. Owned by the reader, not the Ask panel, so
+ * switching tabs (which unmounts the panel) keeps the conversation and any
+ * answer still streaming.
+ */
+export function useArticleChat(storyId: string, postId: string): ArticleChatState {
   const [messages, setMessages] = useState<UiMessage[]>([]);
   const nextIdRef = useRef(0);
-  const [draft, setDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => () => abortRef.current?.abort(), []);
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages]);
 
   const atLimit = messages.length >= CHAT_MAX_MESSAGES - 1;
 
@@ -46,7 +52,6 @@ export function ArticleChat({ storyId, postId }: ArticleChatProps) {
     nextIdRef.current += 2;
     const history: UiMessage[] = [...messages, { id, role: "user", content: text }];
     setMessages([...history, { id: id + 1, role: "assistant", content: "" }]);
-    setDraft("");
     setError(null);
     setStreaming(true);
     const controller = new AbortController();
@@ -78,6 +83,26 @@ export function ArticleChat({ storyId, postId }: ArticleChatProps) {
     }
   }
 
+  return {
+    messages,
+    streaming,
+    error,
+    atLimit,
+    ask: (question) => void ask(question),
+    stop: () => abortRef.current?.abort(),
+  };
+}
+
+/** "Ask" tab of the reader. History lives only while the reader is open. */
+export function ArticleChat({ chat }: { chat: ArticleChatState }) {
+  const { messages, streaming, error, atLimit, ask, stop } = chat;
+  const [draft, setDraft] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "end" });
+  }, [messages]);
+
   return (
     <div className="flex flex-1 flex-col gap-4">
       {messages.length === 0 ? (
@@ -92,7 +117,7 @@ export function ArticleChat({ storyId, postId }: ArticleChatProps) {
                 key={starter}
                 type="button"
                 className="cursor-pointer rounded-full border border-border px-3 py-1 text-xs text-muted-foreground outline-none hover:border-foreground/25 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-                onClick={() => void ask(starter)}
+                onClick={() => ask(starter)}
               >
                 {starter}
               </button>
@@ -127,7 +152,9 @@ export function ArticleChat({ storyId, postId }: ArticleChatProps) {
         className="sticky bottom-0 mt-auto flex items-center gap-2 bg-background pt-2 pb-1"
         onSubmit={(event) => {
           event.preventDefault();
-          void ask(draft);
+          if (!draft.trim() || streaming || atLimit) return;
+          ask(draft);
+          setDraft("");
         }}
       >
         <Input
@@ -148,7 +175,7 @@ export function ArticleChat({ storyId, postId }: ArticleChatProps) {
             variant="outline"
             size="icon"
             aria-label="Stop answer"
-            onClick={() => abortRef.current?.abort()}
+            onClick={stop}
           >
             <Square />
           </Button>
