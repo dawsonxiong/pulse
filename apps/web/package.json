@@ -12,6 +12,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@mozilla/readability": "^0.6.0",
     "@pulse/db": "workspace:*",
     "@pulse/shared": "workspace:*",

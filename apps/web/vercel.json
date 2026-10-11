@@ -5,6 +5,10 @@
       "schedule": "0 7 * * *"
     },
     {
+      "path": "/api/cron/digest",
+      "schedule": "30 7 * * *"
+    },
+    {
       "path": "/api/cron/icons",
       "schedule": "0 8 * * *"
     }

@@ -64,6 +64,8 @@ export const localStateSchema = z.object({
     .default(null),
   feedCacheVersion: z.number().default(0),
   sort: z.enum(["for-you", "latest"]).default("latest"),
+  /** Last AI brief shown; a brief already seen opens collapsed. */
+  digestSeenId: z.string().nullable().default(null),
   displayName: z
     .string()
     .max(40)
