@@ -1,4 +1,4 @@
-import { decodeHtmlEntities, type Digest, type FeedStory } from "@pulse/shared";
+import { decodeHtmlEntities, type Digest, type FeedSource, type FeedStory } from "@pulse/shared";
 import {
   Collapsible,
   CollapsibleContent,
@@ -55,40 +55,78 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
         />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-x-8 gap-y-3 px-4 pb-4">
-          {digest.items.map((item) => (
-            <li
-              key={item.text}
-              className="border-l border-border pl-3 text-sm leading-relaxed text-pretty"
-            >
-              {item.text}
-              <span className="ml-1.5 inline-flex translate-y-0.5 gap-1">
-                {item.storyIds.map((id) => {
-                  const story = storiesById.get(id);
-                  return story ? <Citation key={id} story={story} onOpen={onOpenStory} /> : null;
-                })}
+        <ol className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-x-8 gap-y-4 px-4 pb-4">
+          {digest.items.map((item, index) => (
+            <li key={item.text} className="flex gap-3">
+              <span
+                aria-hidden
+                className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary tabular-nums ring-1 ring-primary/30"
+              >
+                {index + 1}
               </span>
+              <div className="flex min-w-0 flex-col gap-2">
+                <p className="text-sm leading-relaxed text-pretty">{item.text}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {item.storyIds.map((id) => {
+                    const story = storiesById.get(id);
+                    return story ? <Citation key={id} story={story} onOpen={onOpenStory} /> : null;
+                  })}
+                </div>
+              </div>
             </li>
           ))}
-        </ul>
+        </ol>
       </CollapsibleContent>
     </Collapsible>
   );
 }
 
-/** Source icon standing in for a cited story; the original headline shows on hover. */
+const MAX_STACKED_ICONS = 3;
+
+function uniqueSources(story: FeedStory): FeedSource[] {
+  const seen = new Set<string>();
+  const sources: FeedSource[] = [];
+  for (const post of [story.representative, ...story.posts]) {
+    if (seen.has(post.source.id)) continue;
+    seen.add(post.source.id);
+    sources.push(post.source);
+  }
+  return sources;
+}
+
+/** A cited story: stacked icons for every outlet covering it, then the lead outlet's name. */
 function Citation({ story, onOpen }: { story: FeedStory; onOpen: (story: FeedStory) => void }) {
-  const source = story.representative.source;
-  const icon = useIconCandidate(source.iconUrl, source.siteUrl);
+  const sources = uniqueSources(story);
+  const lead = sources[0] ?? story.representative.source;
+  const extra = sources.length - 1;
   const title = decodeHtmlEntities(story.representative.title);
   return (
     <button
       type="button"
       aria-haspopup="dialog"
       aria-label={`Open “${title}”`}
-      title={`${source.name}: ${title}`}
-      className="inline-flex size-5 cursor-pointer items-center justify-center rounded-md border border-border outline-none hover:border-foreground/30 focus-visible:ring-3 focus-visible:ring-ring/50"
+      title={title}
+      className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-border py-0.5 pr-2.5 pl-0.5 text-xs text-muted-foreground outline-none hover:border-foreground/25 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       onClick={() => onOpen(story)}
+    >
+      <span className="flex shrink-0 -space-x-1.5">
+        {sources.slice(0, MAX_STACKED_ICONS).map((source, index) => (
+          // Earlier outlets sit on top so the lead outlet's icon is never covered.
+          <SourceAvatar key={source.id} source={source} zIndex={MAX_STACKED_ICONS - index} />
+        ))}
+      </span>
+      <span className="truncate">{lead.name}</span>
+      {extra > 0 ? <span className="shrink-0 tabular-nums">+{extra}</span> : null}
+    </button>
+  );
+}
+
+function SourceAvatar({ source, zIndex }: { source: FeedSource; zIndex: number }) {
+  const icon = useIconCandidate(source.iconUrl, source.siteUrl);
+  return (
+    <span
+      style={{ zIndex }}
+      className="relative flex size-5 items-center justify-center overflow-hidden rounded-full bg-muted ring-2 ring-card"
     >
       {icon.src ? (
         <img
@@ -96,14 +134,14 @@ function Citation({ story, onOpen }: { story: FeedStory; onOpen: (story: FeedSto
           alt=""
           loading="lazy"
           decoding="async"
-          className={`size-3.5 rounded-sm object-contain ${iconToneClass(source.siteUrl)}`}
+          className={`size-3.5 object-contain ${iconToneClass(source.siteUrl)}`}
           onError={icon.onError}
         />
       ) : (
-        <span aria-hidden className="text-[10px] font-medium text-muted-foreground">
+        <span aria-hidden className="text-[10px] font-medium">
           {source.name.charAt(0).toUpperCase()}
         </span>
       )}
-    </button>
+    </span>
   );
 }
