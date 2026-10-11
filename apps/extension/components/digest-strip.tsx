@@ -6,7 +6,6 @@ import {
 } from "@pulse/ui/components/collapsible";
 import { ChevronDown, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { relativeTime } from "../lib/time";
 
 type DigestStripProps = {
   digest: Digest;
@@ -18,7 +17,7 @@ type DigestStripProps = {
 
 /**
  * AI-written brief above the feed. Kept visually apart from story cards and
- * labeled as AI so it never stands in for an author's headline.
+ * marked with the sparkles icon so it never stands in for an author's headline.
  */
 export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripProps) {
   const [open, setOpen] = useState(!seen);
@@ -42,9 +41,6 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
       <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-2 rounded-xl px-4 py-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
         <Sparkles className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         <span className="shrink-0 font-heading text-sm font-medium">Today's brief</span>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          AI summary · {relativeTime(digest.generatedAt)}
-        </span>
         {!open && first ? (
           <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
             {first.text}

@@ -57,7 +57,7 @@ Inherits the `next16-app` house skill. Only what differs or is pinned here:
 - **`packages/shared` stays pure** — no I/O, no DB, no network, no Chrome APIs. Pass `now` into ranking/clustering.
 - **Prisma client is the singleton from `@pulse/db`.** Never instantiate `PrismaClient` ad-hoc.
 - **Do not add GraphQL, Fastify, GraphORM, Temporal, or a second host.**
-- **The AI brief summarizes; it never replaces.** `lib/digest.ts` writes 3–5 bullets above the feed, labeled as AI, citing stories by id. Cards keep original titles. Citations are filtered to ids we sent.
+- **The AI brief summarizes; it never replaces.** `lib/digest.ts` writes 3–5 bullets above the feed, marked with a sparkles icon, citing stories by id. Cards keep original titles. Citations are filtered to ids we sent.
 - **Votes toggle.** Clicking the same up/down control again clears it. Downvotes do **not** hide cards.
 
 ## Out of scope for v1
