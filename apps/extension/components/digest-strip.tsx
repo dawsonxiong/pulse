@@ -6,6 +6,7 @@ import {
 } from "@pulse/ui/components/collapsible";
 import { ChevronDown, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { iconToneClass, useIconCandidate } from "./source-icon";
 
 type DigestStripProps = {
   digest: Digest;
@@ -54,33 +55,55 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
         />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <ul className="flex flex-col gap-3 px-4 pb-4">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-x-8 gap-y-3 px-4 pb-4">
           {digest.items.map((item) => (
-            <li key={item.text} className="flex flex-col gap-1.5 text-sm leading-relaxed">
-              <p>{item.text}</p>
-              <div className="flex flex-wrap gap-1.5">
+            <li
+              key={item.text}
+              className="border-l border-border pl-3 text-sm leading-relaxed text-pretty"
+            >
+              {item.text}
+              <span className="ml-1.5 inline-flex translate-y-0.5 gap-1">
                 {item.storyIds.map((id) => {
                   const story = storiesById.get(id);
-                  if (!story) return null;
-                  const title = decodeHtmlEntities(story.representative.title);
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      aria-haspopup="dialog"
-                      title={title}
-                      className="max-w-64 cursor-pointer truncate rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground outline-none hover:border-foreground/20 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-                      onClick={() => onOpenStory(story)}
-                    >
-                      {title}
-                    </button>
-                  );
+                  return story ? <Citation key={id} story={story} onOpen={onOpenStory} /> : null;
                 })}
-              </div>
+              </span>
             </li>
           ))}
         </ul>
       </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+/** Source icon standing in for a cited story; the original headline shows on hover. */
+function Citation({ story, onOpen }: { story: FeedStory; onOpen: (story: FeedStory) => void }) {
+  const source = story.representative.source;
+  const icon = useIconCandidate(source.iconUrl, source.siteUrl);
+  const title = decodeHtmlEntities(story.representative.title);
+  return (
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      aria-label={`Open “${title}”`}
+      title={`${source.name}: ${title}`}
+      className="inline-flex size-5 cursor-pointer items-center justify-center rounded-md border border-border outline-none hover:border-foreground/30 focus-visible:ring-3 focus-visible:ring-ring/50"
+      onClick={() => onOpen(story)}
+    >
+      {icon.src ? (
+        <img
+          src={icon.src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className={`size-3.5 rounded-sm object-contain ${iconToneClass(source.siteUrl)}`}
+          onError={icon.onError}
+        />
+      ) : (
+        <span aria-hidden className="text-[10px] font-medium text-muted-foreground">
+          {source.name.charAt(0).toUpperCase()}
+        </span>
+      )}
+    </button>
   );
 }
