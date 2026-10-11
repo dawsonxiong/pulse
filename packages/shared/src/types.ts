@@ -35,6 +35,25 @@ export type FeedStory = {
   posts: FeedPost[];
 };
 
+/** One line of the daily AI brief, pointing at the stories it summarizes. */
+export type DigestItem = {
+  text: string;
+  storyIds: string[];
+};
+
+/** AI-written overview of the top stories. Separate from cards; never replaces titles. */
+export type Digest = {
+  id: string;
+  generatedAt: string;
+  items: DigestItem[];
+  /** Snapshot of every story an item references, so the client can open them. */
+  stories: FeedStory[];
+};
+
+export type DigestResponse = {
+  digest: Digest | null;
+};
+
 export const FEED_SORTS = ["for-you", "latest"] as const;
 export type FeedSort = (typeof FEED_SORTS)[number];
 

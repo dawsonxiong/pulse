@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchFeed } from "./api";
+import { fetchDigest, fetchFeed } from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -43,6 +43,47 @@ describe("fetchFeed", () => {
 
     const page = await fetchFeed(["postgres"], "for-you", "page-2");
     expect(page.nextCursor).toBeNull();
+  });
+});
+
+describe("fetchDigest", () => {
+  it("returns null when no brief exists", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ digest: null })),
+    );
+    expect(await fetchDigest()).toBeNull();
+  });
+
+  it("decodes the cited story snapshots", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        expect(String(input)).toContain("/api/digest");
+        return Response.json({
+          digest: {
+            id: "d1",
+            generatedAt: "2026-10-10T07:30:00.000Z",
+            items: [{ text: "Something happened.", storyIds: ["a"] }],
+            stories: [
+              {
+                id: "a",
+                publishedAt: "2026-10-10T00:00:00.000Z",
+                sourceCount: 1,
+                sourceAuthority: 1,
+                tags: [],
+                score: 1,
+                representative: { ...post("a"), title: "Rust &amp; Go" },
+                posts: [{ ...post("a"), title: "Rust &amp; Go" }],
+              },
+            ],
+          },
+        });
+      }),
+    );
+    const digest = await fetchDigest();
+    expect(digest?.items).toHaveLength(1);
+    expect(digest?.stories[0]?.representative.title).toBe("Rust & Go");
   });
 });
 

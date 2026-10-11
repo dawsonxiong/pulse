@@ -3,6 +3,7 @@ import {
   decorateFeedStory,
   rankStories,
   TAG_BY_SLUG,
+  type Digest,
   type FeedStory,
   type RankableStory,
 } from "@pulse/shared";
@@ -14,7 +15,7 @@ import { Spinner } from "@pulse/ui/components/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@pulse/ui/components/toggle-group";
 import { Bookmark, Newspaper, RefreshCw, Search } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchFeed } from "../lib/api";
+import { fetchDigest, fetchFeed } from "../lib/api";
 import { cachedOrFixture, loadState, saveState, type LocalState } from "../lib/storage";
 import {
   collectSources,
@@ -23,6 +24,7 @@ import {
   storyMatchesFilters,
   type StoryFilters,
 } from "../lib/filters";
+import { DigestStrip } from "./digest-strip";
 import { FeedFilterButton, FeedFilterChips } from "./feed-filters";
 import { Onboarding } from "./onboarding";
 import { Sidebar } from "./sidebar";
@@ -85,6 +87,7 @@ export function App() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [view, setView] = useState<"feed" | "reading-list">("feed");
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [digest, setDigest] = useState<Digest | null>(null);
   const [editingTags, setEditingTags] = useState(false);
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -162,6 +165,29 @@ export function App() {
       cancelled = true;
     };
   }, [onboarded, persistPage, sort, tagKey]);
+
+  // The brief is a nice-to-have: a failed fetch just leaves it hidden.
+  useEffect(() => {
+    if (!onboarded) return;
+    let cancelled = false;
+    void fetchDigest()
+      .then((next) => {
+        if (!cancelled) setDigest(next);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [onboarded]);
+
+  const handleDigestSeen = useCallback((digestId: string) => {
+    setState((prev) => {
+      if (!prev || prev.digestSeenId === digestId) return prev;
+      const next = { ...prev, digestSeenId: digestId };
+      void saveState(next);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -429,6 +455,15 @@ export function App() {
           </div>
           <FeedFilterChips filters={filters} sources={sources} onChange={setFilters} />
         </div>
+        {view === "feed" && !activeTag && !searching && digest && digest.items.length > 0 ? (
+          <DigestStrip
+            key={digest.id}
+            digest={digest}
+            seen={state.digestSeenId === digest.id}
+            onSeen={handleDigestSeen}
+            onOpenStory={handleOpenStory}
+          />
+        ) : null}
         {visibleStories.length === 0 ? (
           <Empty className="min-h-64">
             <EmptyHeader>

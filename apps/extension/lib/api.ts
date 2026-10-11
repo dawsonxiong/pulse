@@ -1,6 +1,8 @@
 import {
   decorateFeedStory,
   decodeFeedStory,
+  type Digest,
+  type DigestResponse,
   type FeedResponse,
   type FeedSort,
   type FeedStory,
@@ -36,6 +38,15 @@ export async function fetchFeed(
   return {
     stories: body.stories.map((story) => decorateFeedStory(decodeFeedStory(story))),
     nextCursor: body.nextCursor,
+  };
+}
+
+export async function fetchDigest(): Promise<Digest | null> {
+  const body = await getJson<DigestResponse>("/api/digest");
+  if (!body.digest) return null;
+  return {
+    ...body.digest,
+    stories: body.digest.stories.map((story) => decorateFeedStory(decodeFeedStory(story))),
   };
 }
 

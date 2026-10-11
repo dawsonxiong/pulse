@@ -23,6 +23,7 @@ From the repo root. Secrets via `op run --account my.1password.com --env-file=.e
 | Generate Prisma client | `pnpm db:generate` |
 | Migrate (you apply) | `pnpm db:migrate` against `DIRECT_URL` |
 | Seed RSS sources | `pnpm db:seed` |
+| Generate the daily AI brief | `GET /api/cron/digest` with `Authorization: Bearer $CRON_SECRET` (daily on Vercel, after ingest; skips without `OPENAI_API_KEY`) |
 | Refresh source icons | `GET /api/cron/icons` with `Authorization: Bearer $CRON_SECRET` (daily on Vercel) |
 
 ## Stack — do not swap without asking
@@ -41,6 +42,7 @@ Inherits the `next16-app` house skill. Only what differs or is pinned here:
   - `op://pulse/Supabase/DATABASE_URL`
   - `op://pulse/Supabase/DIRECT_URL`
   - `op://pulse/Supabase/CRON_SECRET`
+  - `op://Private/3acisiioz3j3u76jpbos7kkizq/OPENAI_DAWSON_API_KEY` → `OPENAI_API_KEY` (daily AI brief, `gpt-6-luna`; by item ID because two Private items are titled OpenAI)
   - Upstash is optional; do not add `op://` refs until the `Upstash` item exists or `op run` fails
 
 ## Hard rules
@@ -55,11 +57,12 @@ Inherits the `next16-app` house skill. Only what differs or is pinned here:
 - **`packages/shared` stays pure** — no I/O, no DB, no network, no Chrome APIs. Pass `now` into ranking/clustering.
 - **Prisma client is the singleton from `@pulse/db`.** Never instantiate `PrismaClient` ad-hoc.
 - **Do not add GraphQL, Fastify, GraphORM, Temporal, or a second host.**
+- **The AI brief summarizes; it never replaces.** `lib/digest.ts` writes 3–5 bullets above the feed, marked with a sparkles icon, citing stories by id. Cards keep original titles. Citations are filtered to ids we sent.
 - **Votes toggle.** Clicking the same up/down control again clears it. Downvotes do **not** hide cards.
 
 ## Out of scope for v1
 
-Squads, DevCards, LLM summaries, embeddings, Plus paywall, native ads, Recruiter, email digest, Firefox/Edge, Chrome Web Store listing, account sync.
+Squads, DevCards, per-story LLM summaries, embeddings, Plus paywall, native ads, Recruiter, email digest, Firefox/Edge, Chrome Web Store listing, account sync.
 
 ## Required behavior
 

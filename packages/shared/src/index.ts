@@ -15,6 +15,7 @@ export {
   isShortUrlHost,
   SHORT_URL_HOSTS,
 } from "./originating-source";
+export { DIGEST_MAX_ITEMS, DIGEST_MAX_TEXT_LENGTH, sanitizeDigestItems } from "./digest";
 export { fixtureStories } from "./fixtures";
 export { decodeFeedPost, decodeFeedStory, decodeHtmlEntities } from "./html-entities";
 export { usableStoryImage } from "./thumbnail";
@@ -30,6 +31,9 @@ export { TAG_BY_SLUG, TAG_CATALOG, tagsFromTitle } from "./tags";
 export { FEED_SORTS } from "./types";
 export type {
   ClusterCandidate,
+  Digest,
+  DigestItem,
+  DigestResponse,
   FeedPost,
   FeedResponse,
   FeedSort,

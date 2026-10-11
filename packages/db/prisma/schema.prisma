@@ -137,3 +137,14 @@ model Comment {
   @@index([parentId])
   @@map("comments")
 }
+
+model Digest {
+  id        String   @id @default(uuid()) @db.Uuid
+  items     Json
+  stories   Json
+  model     String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("digests")
+}
