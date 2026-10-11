@@ -2,13 +2,22 @@ import "server-only";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { prisma, type Prisma } from "@pulse/db";
-import { sanitizeDigestItems, type Digest, type DigestItem, type FeedStory } from "@pulse/shared";
+import {
+  decodeFeedStory,
+  sanitizeDigestItems,
+  type Digest,
+  type DigestItem,
+  type FeedStory,
+} from "@pulse/shared";
 import { z } from "zod";
 import { listFeed } from "./queries/feed";
 
 const DIGEST_MODEL = "gpt-6-luna";
 const DIGEST_STORY_COUNT = 20;
 const EXCERPT_CHARS = 400;
+/** Two attempts at 120s each stay under the cron route's 300s maxDuration. */
+const OPENAI_TIMEOUT_MS = 120_000;
+const OPENAI_MAX_RETRIES = 1;
 /** A digest older than this is stale; the strip hides rather than show yesterday's news. */
 const DIGEST_MAX_AGE_MS = 36 * 60 * 60 * 1000;
 
@@ -32,8 +41,10 @@ const outputSchema = z.object({
 });
 
 function storyBlock(story: FeedStory): string {
-  const post = story.representative;
-  const sources = [...new Set(story.posts.map((p) => p.source.name))].join(", ");
+  // Feed text is stored with HTML entities; decode so the model never echoes `&amp;`.
+  const decoded = decodeFeedStory(story);
+  const post = decoded.representative;
+  const sources = [...new Set(decoded.posts.map((p) => p.source.name))].join(", ");
   const excerpt = post.excerpt?.replace(/\s+/g, " ").trim().slice(0, EXCERPT_CHARS);
   return [
     `<story id="${story.id}">`,
@@ -78,7 +89,8 @@ export async function generateDigest(now = new Date()): Promise<GenerateDigestRe
   const top = stories.slice(0, DIGEST_STORY_COUNT);
   if (top.length === 0) return { status: "skipped", reason: "no stories" };
 
-  const raw = await summarize(new OpenAI(), top);
+  const client = new OpenAI({ timeout: OPENAI_TIMEOUT_MS, maxRetries: OPENAI_MAX_RETRIES });
+  const raw = await summarize(client, top);
   const items = sanitizeDigestItems(
     raw,
     top.map((story) => story.id),

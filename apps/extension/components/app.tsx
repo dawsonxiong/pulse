@@ -455,7 +455,12 @@ export function App() {
           </div>
           <FeedFilterChips filters={filters} sources={sources} onChange={setFilters} />
         </div>
-        {view === "feed" && !activeTag && !searching && digest && digest.items.length > 0 ? (
+        {view === "feed" &&
+        !activeTag &&
+        !searching &&
+        !filtering &&
+        digest &&
+        digest.items.length > 0 ? (
           <DigestStrip
             key={digest.id}
             digest={digest}
