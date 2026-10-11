@@ -90,18 +90,23 @@ export class ChatError extends Error {
   }
 }
 
-/** Asks about one article and calls `onDelta` with each streamed chunk of the answer. */
-export async function streamStoryChat(
-  storyId: string,
-  postId: string,
+export type ChatSender = (
   messages: ChatMessage[],
+  onDelta: (text: string) => void,
+  signal: AbortSignal,
+) => Promise<void>;
+
+/** POSTs a chat turn and calls `onDelta` with each streamed chunk of the answer. */
+async function streamChat(
+  path: string,
+  body: Record<string, unknown>,
   onDelta: (text: string) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(`${API_URL}/api/stories/${storyId}/chat`, {
+  const response = await fetch(`${API_URL}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ postId, messages }),
+    body: JSON.stringify(body),
     signal,
   });
   if (!response.ok || !response.body) {
@@ -116,4 +121,25 @@ export async function streamStoryChat(
   }
   const tail = decoder.decode();
   if (tail) onDelta(tail);
+}
+
+/** Asks about one article. */
+export function streamStoryChat(
+  storyId: string,
+  postId: string,
+  messages: ChatMessage[],
+  onDelta: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  return streamChat(`/api/stories/${storyId}/chat`, { postId, messages }, onDelta, signal);
+}
+
+/** Asks about today's brief and the stories it cites. */
+export function streamDigestChat(
+  digestId: string,
+  messages: ChatMessage[],
+  onDelta: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  return streamChat("/api/digest/chat", { digestId, messages }, onDelta, signal);
 }

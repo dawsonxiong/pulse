@@ -1,6 +1,6 @@
-import { CHAT_MAX_MESSAGE_CHARS, CHAT_MAX_MESSAGES } from "@pulse/shared";
 import { z } from "zod";
 import { loadArticleContext, streamArticleAnswer } from "@/lib/article-chat";
+import { chatMessagesSchema } from "@/lib/chat-schema";
 import { corsHeaders, json, preflight } from "@/lib/cors";
 import { enforceChat } from "@/lib/rate-limit";
 
@@ -8,16 +8,7 @@ const idSchema = z.string().uuid();
 
 const bodySchema = z.object({
   postId: z.string().uuid(),
-  messages: z
-    .array(
-      z.object({
-        role: z.enum(["user", "assistant"]),
-        content: z.string().trim().min(1).max(CHAT_MAX_MESSAGE_CHARS),
-      }),
-    )
-    .min(1)
-    .max(CHAT_MAX_MESSAGES)
-    .refine((messages) => messages.at(-1)?.role === "user", "last message must be from the user"),
+  messages: chatMessagesSchema,
 });
 
 export function OPTIONS(req: Request) {
