@@ -1,6 +1,7 @@
 import {
   decorateFeedStory,
   decodeFeedStory,
+  type ChatMessage,
   type Digest,
   type DigestResponse,
   type FeedResponse,
@@ -78,4 +79,41 @@ export async function postStoryComment(
   if (!response.ok) throw new Error(`API ${response.status}`);
   const body = (await response.json()) as { comment: StoryComment };
   return body.comment;
+}
+
+export class ChatError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+/** Asks about one article and calls `onDelta` with each streamed chunk of the answer. */
+export async function streamStoryChat(
+  storyId: string,
+  postId: string,
+  messages: ChatMessage[],
+  onDelta: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`${API_URL}/api/stories/${storyId}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ postId, messages }),
+    signal,
+  });
+  if (!response.ok || !response.body) {
+    throw new ChatError(response.status, `API ${response.status}`);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    onDelta(decoder.decode(value, { stream: true }));
+  }
+  const tail = decoder.decode();
+  if (tail) onDelta(tail);
 }

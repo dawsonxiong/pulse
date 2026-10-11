@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchDigest, fetchFeed } from "./api";
+import { ChatError, fetchDigest, fetchFeed, streamStoryChat } from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -84,6 +84,49 @@ describe("fetchDigest", () => {
     const digest = await fetchDigest();
     expect(digest?.items).toHaveLength(1);
     expect(digest?.stories[0]?.representative.title).toBe("Rust & Go");
+  });
+});
+
+describe("streamStoryChat", () => {
+  it("posts the history and hands back each streamed chunk", async () => {
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(JSON.parse(String(init?.body))).toEqual({
+        postId: "p1",
+        messages: [{ role: "user", content: "TL;DR?" }],
+      });
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode("Short "));
+          controller.enqueue(encoder.encode("answer."));
+          controller.close();
+        },
+      });
+      return new Response(body, { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const chunks: string[] = [];
+    await streamStoryChat("s1", "p1", [{ role: "user", content: "TL;DR?" }], (text) =>
+      chunks.push(text),
+    );
+    expect(chunks.join("")).toBe("Short answer.");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/api/stories/s1/chat");
+  });
+
+  it("throws a ChatError carrying the status when rate limited", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("Too Many Requests", { status: 429 })),
+    );
+    const error = await streamStoryChat(
+      "s1",
+      "p1",
+      [{ role: "user", content: "hi" }],
+      () => {},
+    ).catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ChatError);
+    expect((error as ChatError).status).toBe(429);
   });
 });
 

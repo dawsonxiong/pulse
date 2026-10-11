@@ -22,10 +22,11 @@ import {
 } from "@pulse/ui/components/empty";
 import { Spinner } from "@pulse/ui/components/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@pulse/ui/components/tabs";
-import { AlertCircle, ExternalLink } from "lucide-react";
+import { AlertCircle, ExternalLink, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchStoryArticle } from "../lib/api";
 import { relativeTime } from "../lib/time";
+import { ArticleChat, useArticleChat } from "./article-chat";
 import { CommentsSection } from "./comments-section";
 import { SourceIcon } from "./source-icon";
 
@@ -87,6 +88,7 @@ type ReaderBodyProps = {
 
 function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBodyProps) {
   const [tab, setTab] = useState("summary");
+  const chat = useArticleChat(story.id, post.id);
   const [article, setArticle] = useState<StoryArticle | null>(null);
   const [articleError, setArticleError] = useState(false);
 
@@ -147,6 +149,10 @@ function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBod
             <TabsTrigger value="article" className="px-2.5">
               Article
             </TabsTrigger>
+            <TabsTrigger value="ask" className="px-2.5">
+              <Sparkles aria-hidden />
+              Ask
+            </TabsTrigger>
           </TabsList>
           <Button
             variant="ghost"
@@ -205,11 +211,16 @@ function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBod
               </Alert>
             )}
           </TabsContent>
-          <CommentsSection
-            storyId={story.id}
-            displayName={displayName}
-            onDisplayNameChange={onDisplayNameChange}
-          />
+          <TabsContent value="ask" className="flex min-h-full flex-col px-6 pt-5 pb-3">
+            <ArticleChat chat={chat} />
+          </TabsContent>
+          {tab === "ask" ? null : (
+            <CommentsSection
+              storyId={story.id}
+              displayName={displayName}
+              onDisplayNameChange={onDisplayNameChange}
+            />
+          )}
         </div>
       </Tabs>
     </div>
