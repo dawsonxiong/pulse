@@ -28,8 +28,9 @@ export {
   tagMatch,
 } from "./ranking";
 export { TAG_BY_SLUG, TAG_CATALOG, tagsFromTitle } from "./tags";
-export { FEED_SORTS } from "./types";
+export { CHAT_MAX_MESSAGE_CHARS, CHAT_MAX_MESSAGES, FEED_SORTS } from "./types";
 export type {
+  ChatMessage,
   ClusterCandidate,
   Digest,
   DigestItem,

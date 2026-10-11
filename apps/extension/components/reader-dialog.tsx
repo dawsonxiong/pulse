@@ -22,10 +22,11 @@ import {
 } from "@pulse/ui/components/empty";
 import { Spinner } from "@pulse/ui/components/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@pulse/ui/components/tabs";
-import { AlertCircle, ExternalLink } from "lucide-react";
+import { AlertCircle, ExternalLink, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchStoryArticle } from "../lib/api";
 import { relativeTime } from "../lib/time";
+import { ArticleChat } from "./article-chat";
 import { CommentsSection } from "./comments-section";
 import { SourceIcon } from "./source-icon";
 
@@ -147,6 +148,10 @@ function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBod
             <TabsTrigger value="article" className="px-2.5">
               Article
             </TabsTrigger>
+            <TabsTrigger value="ask" className="px-2.5">
+              <Sparkles aria-hidden />
+              Ask
+            </TabsTrigger>
           </TabsList>
           <Button
             variant="ghost"
@@ -205,11 +210,16 @@ function ReaderBody({ story, post, displayName, onDisplayNameChange }: ReaderBod
               </Alert>
             )}
           </TabsContent>
-          <CommentsSection
-            storyId={story.id}
-            displayName={displayName}
-            onDisplayNameChange={onDisplayNameChange}
-          />
+          <TabsContent value="ask" className="flex min-h-full flex-col px-6 pt-5 pb-3">
+            <ArticleChat storyId={story.id} postId={post.id} />
+          </TabsContent>
+          {tab === "ask" ? null : (
+            <CommentsSection
+              storyId={story.id}
+              displayName={displayName}
+              onDisplayNameChange={onDisplayNameChange}
+            />
+          )}
         </div>
       </Tabs>
     </div>

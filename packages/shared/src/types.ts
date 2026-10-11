@@ -93,3 +93,12 @@ export type StoryComment = {
   body: string;
   createdAt: string;
 };
+
+/** One turn of "Ask about this article". History lives only in the open reader. */
+export type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export const CHAT_MAX_MESSAGES = 12;
+export const CHAT_MAX_MESSAGE_CHARS = 2000;

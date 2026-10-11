@@ -58,11 +58,12 @@ Inherits the `next16-app` house skill. Only what differs or is pinned here:
 - **Prisma client is the singleton from `@pulse/db`.** Never instantiate `PrismaClient` ad-hoc.
 - **Do not add GraphQL, Fastify, GraphORM, Temporal, or a second host.**
 - **The AI brief summarizes; it never replaces.** `lib/digest.ts` writes 3–5 bullets above the feed, marked with a sparkles icon, citing stories by id. Cards keep original titles. Citations are filtered to ids we sent.
+- **Article chat answers from the article.** The reader's Ask tab (`lib/article-chat.ts`, `POST /api/stories/[id]/chat`) grounds answers in the post's extracted text, labels outside knowledge, streams plain text, keeps history only in the open reader, and always goes through `enforceChat`.
 - **Votes toggle.** Clicking the same up/down control again clears it. Downvotes do **not** hide cards.
 
 ## Out of scope for v1
 
-Squads, DevCards, per-story LLM summaries, embeddings, Plus paywall, native ads, Recruiter, email digest, Firefox/Edge, Chrome Web Store listing, account sync.
+Squads, DevCards, precomputed per-story LLM summaries (on-demand article Q&A is in), embeddings, Plus paywall, native ads, Recruiter, email digest, Firefox/Edge, Chrome Web Store listing, account sync.
 
 ## Required behavior
 
