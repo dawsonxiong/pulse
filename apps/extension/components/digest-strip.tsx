@@ -1,4 +1,10 @@
-import { decodeHtmlEntities, type Digest, type FeedSource, type FeedStory } from "@pulse/shared";
+import {
+  decodeHtmlEntities,
+  type Digest,
+  type DigestItem,
+  type FeedSource,
+  type FeedStory,
+} from "@pulse/shared";
 import {
   Collapsible,
   CollapsibleContent,
@@ -63,40 +69,49 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
         />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <ol className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-x-8 gap-y-4 px-4 pb-4">
-          {digest.items.map((item, index) => (
-            <li key={item.text} className="flex gap-3">
-              <span
-                aria-hidden
-                className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary tabular-nums ring-1 ring-primary/30"
-              >
-                {index + 1}
-              </span>
-              <div className="flex min-w-0 flex-col gap-2">
-                <p className="text-sm leading-relaxed text-pretty">{item.text}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {item.storyIds.map((id) => {
-                    const story = storiesById.get(id);
-                    return story ? <Citation key={id} story={story} onOpen={onOpenStory} /> : null;
-                  })}
+        {/* Wide screens: bullets left, chat panel right (matching the bullets' height and
+            scrolling inside). Narrower: chat stacked under the bullets. */}
+        <div className="flex flex-col xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
+          <ol className="grid content-start grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-x-8 gap-y-4 px-4 pb-4">
+            {digest.items.map((item, index) => (
+              <li key={item.text} className="flex gap-3">
+                <span
+                  aria-hidden
+                  className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary tabular-nums ring-1 ring-primary/30"
+                >
+                  {index + 1}
+                </span>
+                <div className="flex min-w-0 flex-col gap-2">
+                  <p className="text-sm leading-relaxed text-pretty">{item.text}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {item.storyIds.map((id) => {
+                      const story = storiesById.get(id);
+                      return story ? (
+                        <Citation key={id} story={story} onOpen={onOpenStory} />
+                      ) : null;
+                    })}
+                  </div>
                 </div>
-              </div>
-            </li>
-          ))}
-        </ol>
-        <div className="mx-4 mb-4 border-t border-border pt-4">
-          {/* Indented to the bullets' text column: number circle (1.5rem) + gap (0.75rem). */}
-          <div className="pl-9">
-            <ChatThread
-              variant="compact"
-              chat={chat}
-              intro="Ask about today's brief. Answers come from the stories it cites."
-              starters={BRIEF_STARTERS}
-              label="Ask about today's brief"
-              placeholder="Ask about today's brief…"
-              listClassName="max-h-80 overflow-y-auto pr-2"
-              renderAnswer={(text) => withBulletBadges(text, digest.items.length)}
-            />
+              </li>
+            ))}
+          </ol>
+          <div className="mx-4 mb-4 border-t border-border pt-4 xl:relative xl:mx-0 xl:min-h-72 xl:border-t-0 xl:border-l xl:pt-0">
+            {/* Stacked: indented to the bullets' text column (circle 1.5rem + gap 0.75rem). */}
+            <div className="pl-9 xl:absolute xl:inset-0 xl:flex xl:flex-col xl:px-4">
+              <ChatThread
+                variant="compact"
+                chat={chat}
+                intro="Ask about today's brief. Answers come from the stories it cites."
+                starters={BRIEF_STARTERS}
+                label="Ask about today's brief"
+                placeholder="Ask about today's brief…"
+                className="xl:min-h-0"
+                listClassName="max-h-80 overflow-y-auto pr-2 xl:max-h-none xl:min-h-0 xl:flex-1"
+                renderAnswer={(text) =>
+                  withBulletBadges(text, digest.items, storiesById, onOpenStory)
+                }
+              />
+            </div>
           </div>
         </div>
       </CollapsibleContent>
@@ -111,22 +126,35 @@ const BRIEF_STARTERS = [
 ];
 
 /** Renders "(2)" style bullet references in an answer as the brief's numbered badges. */
-function withBulletBadges(text: string, bulletCount: number): ReactNode[] {
+function withBulletBadges(
+  text: string,
+  items: DigestItem[],
+  storiesById: Map<string, FeedStory>,
+  onOpenStory: (story: FeedStory) => void,
+): ReactNode[] {
   let offset = 0;
   return text.split(/(\(\d\))/).map((part) => {
     const at = offset;
     offset += part.length;
     const match = /^\((\d)\)$/.exec(part);
     const bullet = match ? Number(match[1]) : 0;
-    if (bullet < 1 || bullet > bulletCount) return part;
+    const storyId = items[bullet - 1]?.storyIds[0];
+    const story = storyId ? storiesById.get(storyId) : undefined;
+    if (!story) return part;
+    const title = decodeHtmlEntities(story.representative.title);
+    // Opens the bullet's lead story in the reader, like a citation chip.
     return (
-      <span
+      <button
         key={at}
-        aria-label={`bullet ${bullet}`}
-        className="mx-0.5 inline-flex size-[1.15rem] -translate-y-px items-center justify-center rounded-full bg-primary/10 align-middle text-[0.65rem] font-semibold text-primary tabular-nums ring-1 ring-primary/30"
+        type="button"
+        aria-haspopup="dialog"
+        aria-label={`Open bullet ${bullet}: “${title}”`}
+        title={title}
+        className="mx-0.5 inline-flex size-[1.15rem] -translate-y-px cursor-pointer items-center justify-center rounded-full bg-primary/10 align-middle text-[0.65rem] font-semibold text-primary tabular-nums ring-1 ring-primary/30 outline-none hover:bg-primary/25 focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={() => onOpenStory(story)}
       >
         {bullet}
-      </span>
+      </button>
     );
   });
 }

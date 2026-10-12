@@ -207,6 +207,8 @@ type ChatThreadProps = {
   listClassName?: string;
   /** Classes for the composer row, e.g. sticky in the reader. */
   formClassName?: string;
+  /** Classes for the outer column, e.g. filling a side panel. */
+  className?: string;
   /** Custom rendering for answer text, e.g. turning "(2)" into a bullet badge. */
   renderAnswer?: (text: string) => ReactNode;
   /**
@@ -225,6 +227,7 @@ export function ChatThread({
   placeholder,
   listClassName,
   formClassName,
+  className,
   renderAnswer = plainText,
   variant = "chat",
 }: ChatThreadProps) {
@@ -262,7 +265,11 @@ export function ChatThread({
   );
 
   return (
-    <div className={cn("group/chat flex flex-1 flex-col", compact ? "gap-2" : "gap-4")}>
+    <div className={cn("group/chat flex flex-1 flex-col", compact ? "gap-2" : "gap-4", className)}>
+      {empty && compact ? (
+        // In the brief's side panel (xl and up) there's room to say what this is.
+        <p className="hidden text-sm text-muted-foreground xl:block">{intro}</p>
+      ) : null}
       {empty && !compact ? (
         <div className="flex flex-col gap-3 py-1">
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -352,6 +359,7 @@ export function ChatThread({
       <form
         className={cn(
           "flex items-end gap-2 rounded-xl border border-input bg-input/30 p-1.5 pl-3 transition-colors focus-within:border-ring/70 focus-within:ring-2 focus-within:ring-ring/20",
+          compact && "xl:order-2",
           formClassName,
         )}
         onSubmit={(event) => {
@@ -399,8 +407,11 @@ export function ChatThread({
         )}
       </form>
       {empty && compact ? (
-        // Starters stay out of the way until the composer is focused.
-        <div className="hidden group-focus-within/chat:block">{starterButtons}</div>
+        // Stacked: starters appear under the composer once it's focused. Side panel
+        // (xl and up): always shown, ordered above the composer at the bottom.
+        <div className="hidden group-focus-within/chat:block xl:order-1 xl:mt-auto xl:block">
+          {starterButtons}
+        </div>
       ) : null}
     </div>
   );
