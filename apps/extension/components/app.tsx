@@ -509,11 +509,12 @@ export function App() {
               </div>
             ) : null}
             <div className="grid grid-cols-1 gap-x-8 xl:grid-cols-2">
-              {rowStories.map((story) => (
+              {rowStories.map((story, index) => (
                 <StoryCard
                   key={story.id}
                   story={story}
                   variant="row"
+                  priority={index < 8}
                   bookmarked={bookmarkIds.has(story.id)}
                   vote={voteMap.get(story.id) ?? null}
                   onOpenStory={handleOpenStory}

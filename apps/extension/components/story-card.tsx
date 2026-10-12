@@ -59,7 +59,11 @@ export const StoryCard = memo(function StoryCard({
       alt=""
       fallbackLabel={story.representative.source.name}
       priority={priority}
-      className={cn("aspect-[1200/630] w-full rounded-lg ring-1 ring-border", DIMMED_IMAGE)}
+      className={cn(
+        "aspect-[1200/630] ring-1 ring-border",
+        lead ? "w-full rounded-lg" : "w-full rounded-md",
+        DIMMED_IMAGE,
+      )}
     />
   );
 
@@ -116,9 +120,9 @@ export const StoryCard = memo(function StoryCard({
     );
   }
 
-  // Rows are text-first: at this size publisher art is unreadable noise, so only leads show it.
+  // The thumbnail sits on the right so every headline starts on the same left edge.
   return (
-    <article className="group/story border-b border-border/60 py-3">
+    <article className="group/story flex items-start gap-4 border-b border-border/60 py-3">
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <button
           type="button"
@@ -132,6 +136,16 @@ export const StoryCard = memo(function StoryCard({
         </button>
         {meta}
       </div>
+      {/* The image repeats the title button's action, so it stays out of the tab order. */}
+      <button
+        type="button"
+        className="w-28 shrink-0 cursor-pointer rounded-md border-0 bg-transparent p-0 outline-none"
+        aria-hidden
+        tabIndex={-1}
+        onClick={() => onOpenStory(story)}
+      >
+        {thumbnail}
+      </button>
     </article>
   );
 });
