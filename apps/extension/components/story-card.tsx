@@ -60,7 +60,7 @@ export const StoryCard = memo(function StoryCard({
       fallbackLabel={story.representative.source.name}
       priority={priority}
       className={cn(
-        "aspect-[1200/630] ring-1 ring-border",
+        "aspect-[1200/630] ring-2 ring-border",
         lead ? "w-full rounded-lg" : "w-full rounded-md",
         DIMMED_IMAGE,
       )}

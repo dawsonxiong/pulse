@@ -72,7 +72,7 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
               <li key={item.text} className="mb-3 flex break-inside-avoid gap-3">
                 <span
                   aria-hidden
-                  className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary tabular-nums ring-1 ring-primary/30"
+                  className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary tabular-nums ring-2 ring-primary/30"
                 >
                   {index + 1}
                 </span>
@@ -143,7 +143,7 @@ function withBulletBadges(
         aria-haspopup="dialog"
         aria-label={`Open bullet ${bullet}: “${title}”`}
         title={title}
-        className="mx-0.5 inline-flex size-[1.15rem] -translate-y-px cursor-pointer items-center justify-center rounded-full bg-primary/10 align-middle text-[0.65rem] font-semibold text-primary tabular-nums ring-1 ring-primary/30 outline-none hover:bg-primary/25 focus-visible:ring-2 focus-visible:ring-ring"
+        className="mx-0.5 inline-flex size-[1.15rem] -translate-y-px cursor-pointer items-center justify-center rounded-full bg-primary/10 align-middle text-[0.65rem] font-semibold text-primary tabular-nums ring-2 ring-primary/30 outline-none hover:bg-primary/25 focus-visible:ring-2 focus-visible:ring-ring"
         onClick={() => onOpenStory(story)}
       >
         {bullet}
