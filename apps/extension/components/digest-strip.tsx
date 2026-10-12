@@ -71,27 +71,25 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
       <CollapsibleContent>
         {/* Wide screens: bullets left, chat panel right (matching the bullets' height and
             scrolling inside). Narrower: chat stacked under the bullets. */}
-        <div className="flex flex-col xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
-          <ol className="grid content-start grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-x-8 gap-y-4 px-4 pb-4">
+        <div className="flex flex-col xl:grid xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+          {/* CSS columns balance 3–5 bullets across two columns without leaving a hole. */}
+          <ol className="gap-8 px-4 pb-1 md:columns-2">
             {digest.items.map((item, index) => (
-              <li key={item.text} className="flex gap-3">
+              <li key={item.text} className="mb-3 flex break-inside-avoid gap-3">
                 <span
                   aria-hidden
                   className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary tabular-nums ring-1 ring-primary/30"
                 >
                   {index + 1}
                 </span>
-                <div className="flex min-w-0 flex-col gap-2">
-                  <p className="text-sm leading-relaxed text-pretty">{item.text}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {item.storyIds.map((id) => {
-                      const story = storiesById.get(id);
-                      return story ? (
-                        <Citation key={id} story={story} onOpen={onOpenStory} />
-                      ) : null;
-                    })}
-                  </div>
-                </div>
+                <p className="min-w-0 text-sm leading-relaxed text-pretty">
+                  {item.text}
+                  {/* Sources sit at the end of the sentence, like footnotes. */}
+                  {item.storyIds.map((id) => {
+                    const story = storiesById.get(id);
+                    return story ? <Citation key={id} story={story} onOpen={onOpenStory} /> : null;
+                  })}
+                </p>
               </li>
             ))}
           </ol>
@@ -172,7 +170,7 @@ function uniqueSources(story: FeedStory): FeedSource[] {
   return sources;
 }
 
-/** A cited story: stacked icons for every outlet covering it, then the lead outlet's name. */
+/** A cited story, inline after the bullet: outlet icons and a +N count; the outlet and headline show on hover. */
 function Citation({ story, onOpen }: { story: FeedStory; onOpen: (story: FeedStory) => void }) {
   const sources = uniqueSources(story);
   const lead = sources[0] ?? story.representative.source;
@@ -182,9 +180,9 @@ function Citation({ story, onOpen }: { story: FeedStory; onOpen: (story: FeedSto
     <button
       type="button"
       aria-haspopup="dialog"
-      aria-label={`Open “${title}”`}
-      title={title}
-      className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-border py-0.5 pr-2.5 pl-0.5 text-xs text-muted-foreground outline-none hover:border-foreground/25 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+      aria-label={`Open “${title}” from ${lead.name}${extra > 0 ? ` and ${extra} more` : ""}`}
+      title={`${lead.name}: ${title}`}
+      className="ml-1.5 inline-flex translate-y-[3px] cursor-pointer items-center gap-1 rounded-full p-0.5 pr-1 align-baseline text-xs text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       onClick={() => onOpen(story)}
     >
       <span className="flex shrink-0 -space-x-1.5">
@@ -193,8 +191,7 @@ function Citation({ story, onOpen }: { story: FeedStory; onOpen: (story: FeedSto
           <SourceAvatar key={source.id} source={source} zIndex={MAX_STACKED_ICONS - index} />
         ))}
       </span>
-      <span className="truncate">{lead.name}</span>
-      {extra > 0 ? <span className="shrink-0 tabular-nums">+{extra}</span> : null}
+      {extra > 0 ? <span className="tabular-nums">+{extra}</span> : null}
     </button>
   );
 }
