@@ -87,7 +87,7 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
               </li>
             ))}
           </ol>
-          <div className="mx-4 mb-4 border-t border-border pt-4 xl:relative xl:mx-0 xl:min-h-72 xl:border-t-0 xl:border-l xl:pt-0">
+          <div className="mx-4 mb-4 border-t border-border pt-4 xl:relative xl:mx-0 xl:min-h-56 xl:border-t-0 xl:border-l xl:pt-0">
             {/* Stacked: indented to the bullets' text column (circle 1.5rem + gap 0.75rem). */}
             <div className="pl-9 xl:absolute xl:inset-0 xl:flex xl:flex-col xl:px-4">
               <ChatThread
@@ -98,7 +98,8 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
                 label="Ask about today's brief"
                 placeholder="Ask about today's brief…"
                 className="xl:min-h-0"
-                listClassName="max-h-80 overflow-y-auto pr-2 xl:max-h-none xl:min-h-0 xl:flex-1"
+                // The fade hints that earlier messages scrolled out of view above.
+                listClassName="max-h-80 overflow-y-auto pr-2 [mask-image:linear-gradient(to_bottom,transparent,black_1.25rem)] pt-3 xl:max-h-none xl:min-h-0 xl:flex-1"
                 renderAnswer={(text) =>
                   withBulletBadges(text, digest.items, storiesById, onOpenStory)
                 }
