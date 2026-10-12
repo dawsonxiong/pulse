@@ -33,9 +33,8 @@ function storyImage(story: FeedStory): string | null {
   );
 }
 
-/** Publisher art is often bright white; dim it on the dark UI until the story is hovered. */
-const DIMMED_IMAGE =
-  "[&_img]:brightness-[.82] [&_img]:transition-[filter] group-hover/story:[&_img]:brightness-100";
+/** Publisher art is often bright white; tone it down slightly so it doesn't glare on the dark UI. */
+const DIMMED_IMAGE = "[&_img]:brightness-[.9]";
 
 export const StoryCard = memo(function StoryCard({
   story,
