@@ -85,14 +85,16 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
           ))}
         </ol>
         <div className="mx-4 mb-4 border-t border-border pt-4">
-          <div className="max-w-3xl">
+          {/* Indented to the bullets' text column: number circle (1.5rem) + gap (0.75rem). */}
+          <div className="max-w-[46rem] pl-9">
             <ChatThread
+              variant="compact"
               chat={chat}
               intro="Ask about today's brief. Answers come from the stories it cites."
               starters={BRIEF_STARTERS}
               label="Ask about today's brief"
               placeholder="Ask about today's brief…"
-              listClassName="max-h-96 overflow-y-auto pr-1"
+              listClassName="max-h-80 overflow-y-auto pr-2"
               renderAnswer={(text) => withBulletBadges(text, digest.items.length)}
             />
           </div>

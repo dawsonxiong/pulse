@@ -101,6 +101,11 @@ type ChatThreadProps = {
   formClassName?: string;
   /** Custom rendering for answer text, e.g. turning "(2)" into a bullet badge. */
   renderAnswer?: (text: string) => ReactNode;
+  /**
+   * "chat" uses bubbles and reading-size answers (the reader). "compact" is a
+   * Q&A log at body text size that sits inline with other content (the brief).
+   */
+  variant?: "chat" | "compact";
 };
 
 export function ChatThread({
@@ -112,7 +117,9 @@ export function ChatThread({
   listClassName,
   formClassName,
   renderAnswer = plainText,
+  variant = "chat",
 }: ChatThreadProps) {
+  const compact = variant === "compact";
   const { messages, streaming, error, atLimit, ask, stop } = chat;
   const [draft, setDraft] = useState("");
   const endRef = useRef<HTMLLIElement>(null);
@@ -122,11 +129,11 @@ export function ChatThread({
   }, [messages]);
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className={cn("flex flex-1 flex-col", compact ? "gap-3" : "gap-4")}>
       {messages.length === 0 ? (
-        <div className="flex flex-col gap-3 py-1">
+        <div className={cn("flex flex-col", compact ? "gap-2" : "gap-3 py-1")}>
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Sparkles className="size-4" aria-hidden />
+            {compact ? null : <Sparkles className="size-4" aria-hidden />}
             {intro}
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -143,19 +150,31 @@ export function ChatThread({
           </div>
         </div>
       ) : (
-        <ol className={cn("flex flex-col gap-4", listClassName)} aria-live="polite">
+        <ol
+          className={cn("flex flex-col", compact ? "gap-1" : "gap-4", listClassName)}
+          aria-live="polite"
+        >
           {messages.map((message, index) =>
             message.role === "user" ? (
               <li
                 key={message.id}
-                className="max-w-[85%] self-end rounded-2xl rounded-br-md bg-muted px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap"
+                className={
+                  compact
+                    ? "mt-3 text-sm font-medium whitespace-pre-wrap first:mt-0"
+                    : "max-w-[85%] self-end rounded-2xl rounded-br-md bg-muted px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap"
+                }
               >
                 {message.content}
               </li>
             ) : (
               <li
                 key={message.id}
-                className="text-[0.925rem] leading-7 text-pretty whitespace-pre-wrap"
+                className={cn(
+                  "text-pretty whitespace-pre-wrap",
+                  compact
+                    ? "text-sm leading-relaxed text-foreground/80"
+                    : "text-[0.925rem] leading-7",
+                )}
                 aria-busy={streaming && index === messages.length - 1}
               >
                 {message.content ? (
@@ -193,7 +212,7 @@ export function ChatThread({
           <Button
             type="button"
             variant="outline"
-            size="icon"
+            size={compact ? "icon-sm" : "icon"}
             aria-label="Stop answer"
             onClick={stop}
           >
@@ -202,7 +221,7 @@ export function ChatThread({
         ) : (
           <Button
             type="submit"
-            size="icon"
+            size={compact ? "icon-sm" : "icon"}
             aria-label="Send question"
             disabled={!draft.trim() || atLimit}
           >
