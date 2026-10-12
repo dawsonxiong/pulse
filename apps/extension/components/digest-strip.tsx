@@ -86,7 +86,7 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
         </ol>
         <div className="mx-4 mb-4 border-t border-border pt-4">
           {/* Indented to the bullets' text column: number circle (1.5rem) + gap (0.75rem). */}
-          <div className="max-w-[46rem] pl-9">
+          <div className="pl-9">
             <ChatThread
               variant="compact"
               chat={chat}
