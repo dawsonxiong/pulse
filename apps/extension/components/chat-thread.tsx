@@ -115,23 +115,28 @@ function AnswerBody({
   text,
   renderInline,
   caret,
+  compact,
 }: {
   text: string;
   renderInline: (text: string) => ReactNode;
   caret: ReactNode;
+  compact: boolean;
 }) {
   const visible = parseAnswer(text);
   if (visible.length === 0) return <p>{caret}</p>;
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className={cn("flex flex-col", compact ? "gap-1.5" : "gap-2.5")}>
       {visible.map((block, blockIndex) => {
         const isLast = blockIndex === visible.length - 1;
         if (block.kind === "ul") {
           return (
             <ul
               key={block.line}
-              className="flex list-disc flex-col gap-1 pl-5 marker:text-muted-foreground"
+              className={cn(
+                "flex list-disc flex-col marker:text-muted-foreground",
+                compact ? "gap-0.5 pl-4" : "gap-1 pl-5",
+              )}
             >
               {block.items.map((item, itemIndex) => (
                 <li key={item.line}>
@@ -171,18 +176,20 @@ function CopyButton({ text }: { text: string }) {
     const timer = setTimeout(() => setCopied(false), 1500);
     return () => clearTimeout(timer);
   }, [copied]);
+  const label = copied ? "Copied" : "Copy answer";
   return (
     <Button
       type="button"
       variant="ghost"
-      size="xs"
-      className="text-muted-foreground"
+      size="icon-xs"
+      title={label}
+      aria-label={label}
+      className="text-muted-foreground hover:text-foreground"
       onClick={() => {
         void navigator.clipboard.writeText(text).then(() => setCopied(true));
       }}
     >
-      {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
-      {copied ? "Copied" : "Copy"}
+      {copied ? <Check /> : <Copy />}
     </Button>
   );
 }
@@ -196,8 +203,6 @@ type ChatThreadProps = {
   starters: string[];
   label: string;
   placeholder: string;
-  /** Where answers come from, shown under each finished answer. */
-  sourceNote: string;
   /** Classes for the message list, e.g. a max height in tight spaces. */
   listClassName?: string;
   /** Classes for the composer row, e.g. sticky in the reader. */
@@ -218,7 +223,6 @@ export function ChatThread({
   starters,
   label,
   placeholder,
-  sourceNote,
   listClassName,
   formClassName,
   renderAnswer = plainText,
@@ -258,7 +262,7 @@ export function ChatThread({
   );
 
   return (
-    <div className={cn("group/chat flex flex-1 flex-col", compact ? "gap-3" : "gap-4")}>
+    <div className={cn("group/chat flex flex-1 flex-col", compact ? "gap-2" : "gap-4")}>
       {empty && !compact ? (
         <div className="flex flex-col gap-3 py-1">
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -293,7 +297,8 @@ export function ChatThread({
               <li
                 key={message.id}
                 className={cn(
-                  "flex flex-col gap-1.5 text-pretty",
+                  "flex flex-col text-pretty",
+                  compact ? "gap-1" : "gap-1.5",
                   compact
                     ? "text-sm leading-relaxed text-foreground/80"
                     : "text-[0.925rem] leading-7",
@@ -305,24 +310,26 @@ export function ChatThread({
                   text={message.content}
                   renderInline={renderAnswer}
                   caret={live ? <StreamingCaret /> : null}
+                  compact={compact}
                 />
                 {live ? null : (
-                  <div className={cn("flex items-center gap-1", compact ? "-ml-2" : "-ml-2.5")}>
+                  // Icons only; -ml-1.5 lines the first icon up with the text edge.
+                  <div className="-ml-1.5 flex items-center gap-0.5">
                     <CopyButton text={message.content} />
                     {index === lastIndex ? (
                       <Button
                         type="button"
                         variant="ghost"
-                        size="xs"
-                        className="text-muted-foreground"
+                        size="icon-xs"
+                        title="Try again"
+                        aria-label="Try again"
+                        className="text-muted-foreground hover:text-foreground"
                         disabled={streaming}
                         onClick={retry}
                       >
-                        <RotateCcw data-icon="inline-start" />
-                        Try again
+                        <RotateCcw />
                       </Button>
                     ) : null}
-                    <span className="ml-1.5 text-xs text-muted-foreground">{sourceNote}</span>
                   </div>
                 )}
               </li>

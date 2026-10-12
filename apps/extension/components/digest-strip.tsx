@@ -94,7 +94,6 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
               starters={BRIEF_STARTERS}
               label="Ask about today's brief"
               placeholder="Ask about today's brief…"
-              sourceNote="From today's stories"
               listClassName="max-h-80 overflow-y-auto pr-2"
               renderAnswer={(text) => withBulletBadges(text, digest.items.length)}
             />

@@ -22,7 +22,6 @@ export function ArticleChat({ chat }: { chat: ChatState }) {
       starters={STARTERS}
       label="Ask about this article"
       placeholder="Ask about this article…"
-      sourceNote="From this article"
       formClassName="sticky bottom-1 mt-auto bg-background"
     />
   );
