@@ -1,4 +1,4 @@
-import { decodeHtmlEntities, type Digest, type FeedSource, type FeedStory } from "@pulse/shared";
+import { decodeHtmlEntities, type Digest, type FeedStory } from "@pulse/shared";
 import {
   Collapsible,
   CollapsibleContent,
@@ -8,7 +8,7 @@ import { ChevronDown, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { streamDigestChat, type ChatSender } from "../lib/api";
 import { ChatThread, useChat } from "./chat-thread";
-import { iconToneClass, useIconCandidate } from "./source-icon";
+import { SourceStack, uniqueSources } from "./source-stack";
 
 type DigestStripProps = {
   digest: Digest;
@@ -131,19 +131,6 @@ function withBulletBadges(text: string, bulletCount: number): ReactNode[] {
   });
 }
 
-const MAX_STACKED_ICONS = 3;
-
-function uniqueSources(story: FeedStory): FeedSource[] {
-  const seen = new Set<string>();
-  const sources: FeedSource[] = [];
-  for (const post of [story.representative, ...story.posts]) {
-    if (seen.has(post.source.id)) continue;
-    seen.add(post.source.id);
-    sources.push(post.source);
-  }
-  return sources;
-}
-
 /** A cited story: stacked icons for every outlet covering it, then the lead outlet's name. */
 function Citation({ story, onOpen }: { story: FeedStory; onOpen: (story: FeedStory) => void }) {
   const sources = uniqueSources(story);
@@ -159,39 +146,9 @@ function Citation({ story, onOpen }: { story: FeedStory; onOpen: (story: FeedSto
       className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-border py-0.5 pr-2.5 pl-0.5 text-xs text-muted-foreground outline-none hover:border-foreground/25 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       onClick={() => onOpen(story)}
     >
-      <span className="flex shrink-0 -space-x-1.5">
-        {sources.slice(0, MAX_STACKED_ICONS).map((source, index) => (
-          // Earlier outlets sit on top so the lead outlet's icon is never covered.
-          <SourceAvatar key={source.id} source={source} zIndex={MAX_STACKED_ICONS - index} />
-        ))}
-      </span>
+      <SourceStack sources={sources} />
       <span className="truncate">{lead.name}</span>
       {extra > 0 ? <span className="shrink-0 tabular-nums">+{extra}</span> : null}
     </button>
-  );
-}
-
-function SourceAvatar({ source, zIndex }: { source: FeedSource; zIndex: number }) {
-  const icon = useIconCandidate(source.iconUrl, source.siteUrl);
-  return (
-    <span
-      style={{ zIndex }}
-      className="relative flex size-5 items-center justify-center overflow-hidden rounded-full bg-muted ring-2 ring-card"
-    >
-      {icon.src ? (
-        <img
-          src={icon.src}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          className={`size-3.5 object-contain ${iconToneClass(source.siteUrl)}`}
-          onError={icon.onError}
-        />
-      ) : (
-        <span aria-hidden className="text-[10px] font-medium">
-          {source.name.charAt(0).toUpperCase()}
-        </span>
-      )}
-    </span>
   );
 }
