@@ -5,7 +5,9 @@ import {
   CollapsibleTrigger,
 } from "@pulse/ui/components/collapsible";
 import { ChevronDown, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { streamDigestChat, type ChatSender } from "../lib/api";
+import { ChatThread, useChat } from "./chat-thread";
 import { iconToneClass, useIconCandidate } from "./source-icon";
 
 type DigestStripProps = {
@@ -22,6 +24,12 @@ type DigestStripProps = {
  */
 export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripProps) {
   const [open, setOpen] = useState(!seen);
+  // Owned here, not in the collapsible panel, so collapsing keeps the conversation.
+  const sendChat = useCallback<ChatSender>(
+    (messages, onDelta, signal) => streamDigestChat(digest.id, messages, onDelta, signal),
+    [digest.id],
+  );
+  const chat = useChat(sendChat, "This brief is no longer available. Refresh to get today's.");
   const storiesById = useMemo(
     () => new Map(digest.stories.map((story) => [story.id, story])),
     [digest.stories],
@@ -76,9 +84,51 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
             </li>
           ))}
         </ol>
+        <div className="mx-4 mb-4 border-t border-border pt-4">
+          {/* Indented to the bullets' text column: number circle (1.5rem) + gap (0.75rem). */}
+          <div className="pl-9">
+            <ChatThread
+              variant="compact"
+              chat={chat}
+              intro="Ask about today's brief. Answers come from the stories it cites."
+              starters={BRIEF_STARTERS}
+              label="Ask about today's brief"
+              placeholder="Ask about today's brief…"
+              listClassName="max-h-80 overflow-y-auto pr-2"
+              renderAnswer={(text) => withBulletBadges(text, digest.items.length)}
+            />
+          </div>
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );
+}
+
+const BRIEF_STARTERS = [
+  "What matters most today?",
+  "Anything I should act on?",
+  "How do these stories connect?",
+];
+
+/** Renders "(2)" style bullet references in an answer as the brief's numbered badges. */
+function withBulletBadges(text: string, bulletCount: number): ReactNode[] {
+  let offset = 0;
+  return text.split(/(\(\d\))/).map((part) => {
+    const at = offset;
+    offset += part.length;
+    const match = /^\((\d)\)$/.exec(part);
+    const bullet = match ? Number(match[1]) : 0;
+    if (bullet < 1 || bullet > bulletCount) return part;
+    return (
+      <span
+        key={at}
+        aria-label={`bullet ${bullet}`}
+        className="mx-0.5 inline-flex size-[1.15rem] -translate-y-px items-center justify-center rounded-full bg-primary/10 align-middle text-[0.65rem] font-semibold text-primary tabular-nums ring-1 ring-primary/30"
+      >
+        {bullet}
+      </span>
+    );
+  });
 }
 
 const MAX_STACKED_ICONS = 3;

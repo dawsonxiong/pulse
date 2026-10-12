@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ChatError, fetchDigest, fetchFeed, streamStoryChat } from "./api";
+import { ChatError, fetchDigest, fetchFeed, streamDigestChat, streamStoryChat } from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -127,6 +127,26 @@ describe("streamStoryChat", () => {
     ).catch((err: unknown) => err);
     expect(error).toBeInstanceOf(ChatError);
     expect((error as ChatError).status).toBe(429);
+  });
+});
+
+describe("streamDigestChat", () => {
+  it("posts the brief id with the history", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toContain("/api/digest/chat");
+      expect(JSON.parse(String(init?.body))).toEqual({
+        digestId: "d1",
+        messages: [{ role: "user", content: "What matters most?" }],
+      });
+      return new Response("See (1).", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    let answer = "";
+    await streamDigestChat("d1", [{ role: "user", content: "What matters most?" }], (text) => {
+      answer += text;
+    });
+    expect(answer).toBe("See (1).");
   });
 });
 

@@ -1,16 +1,12 @@
 import "server-only";
-import OpenAI from "openai";
 import { prisma } from "@pulse/db";
 import { decodeHtmlEntities, type ChatMessage } from "@pulse/shared";
 import { extractArticleHtml, fetchArticlePage } from "./extract-article";
+import { streamGroundedAnswer } from "./chat-stream";
 import { isPublicHttpUrl } from "./public-url";
 
-const CHAT_MODEL = "gpt-6-luna";
 /** Roughly 20k tokens; long enough for nearly any post, bounded so one question stays cheap. */
 const ARTICLE_MAX_CHARS = 80_000;
-const MAX_OUTPUT_TOKENS = 1_000;
-/** No retry: a failed answer is cheaper to re-ask than to wait out, and stays under maxDuration. */
-const OPENAI_TIMEOUT_MS = 60_000;
 
 const INSTRUCTIONS = `You answer a developer's questions about one article from Pulse, a developer news feed.
 
@@ -76,51 +72,16 @@ export async function loadArticleContext(
   };
 }
 
-/** Streams the answer as plain-text deltas. */
-export async function streamArticleAnswer(
+/** Streams an answer grounded in the article. */
+export function streamArticleAnswer(
   article: ArticleContext,
   messages: ChatMessage[],
   signal: AbortSignal,
 ): Promise<ReadableStream<Uint8Array>> {
-  const client = new OpenAI({ timeout: OPENAI_TIMEOUT_MS, maxRetries: 0 });
-  const events = await client.responses.create(
-    {
-      model: CHAT_MODEL,
-      reasoning: { effort: "low" },
-      max_output_tokens: MAX_OUTPUT_TOKENS,
-      instructions: INSTRUCTIONS,
-      input: [
-        // Third-party text goes in as user content; developer messages carry more authority.
-        {
-          role: "user",
-          content: `<article>\ntitle: ${article.title}\nsource: ${article.source}\nurl: ${article.url}\n\n${article.text}\n</article>`,
-        },
-        ...messages.map((message) => ({ role: message.role, content: message.content })),
-      ],
-      stream: true,
-    },
-    { signal },
-  );
-
-  const encoder = new TextEncoder();
-  return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      try {
-        for await (const event of events) {
-          if (event.type === "response.output_text.delta") {
-            controller.enqueue(encoder.encode(event.delta));
-          } else if (event.type === "response.failed" || event.type === "error") {
-            throw new Error(`chat stream ${event.type}`);
-          }
-        }
-        controller.close();
-      } catch (err) {
-        console.error(err);
-        controller.error(err);
-      }
-    },
-    cancel() {
-      events.controller.abort();
-    },
+  return streamGroundedAnswer({
+    instructions: INSTRUCTIONS,
+    context: `<article>\ntitle: ${article.title}\nsource: ${article.source}\nurl: ${article.url}\n\n${article.text}\n</article>`,
+    messages,
+    signal,
   });
 }
