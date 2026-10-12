@@ -490,9 +490,9 @@ export function App() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1">
             {leadStories.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 border-b border-border/60 pb-6 lg:grid-cols-2 lg:gap-8">
                 {leadStories.map((story) => (
                   <StoryCard
                     key={story.id}
@@ -509,14 +509,13 @@ export function App() {
               </div>
             ) : null}
             <div className="grid grid-cols-1 gap-x-8 xl:grid-cols-2">
-              {rowStories.map((story, index) => (
+              {rowStories.map((story) => (
                 <StoryCard
                   key={story.id}
                   story={story}
                   variant="row"
                   bookmarked={bookmarkIds.has(story.id)}
                   vote={voteMap.get(story.id) ?? null}
-                  priority={index < 8}
                   onOpenStory={handleOpenStory}
                   onToggleBookmark={handleToggleBookmark}
                   onVote={handleVote}

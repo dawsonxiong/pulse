@@ -34,7 +34,7 @@ function storyImage(story: FeedStory): string | null {
 }
 
 /** Publisher art is often bright white; tone it down slightly so it doesn't glare on the dark UI. */
-const DIMMED_IMAGE = "[&_img]:brightness-[.9]";
+const DIMMED_IMAGE = "[&_img]:brightness-[.92]";
 
 export const StoryCard = memo(function StoryCard({
   story,
@@ -59,11 +59,7 @@ export const StoryCard = memo(function StoryCard({
       alt=""
       fallbackLabel={story.representative.source.name}
       priority={priority}
-      className={cn(
-        "aspect-[1200/630] ring-1 ring-border",
-        lead ? "w-full rounded-lg" : "w-28 shrink-0 rounded-md",
-        DIMMED_IMAGE,
-      )}
+      className={cn("aspect-[1200/630] w-full rounded-lg ring-1 ring-border", DIMMED_IMAGE)}
     />
   );
 
@@ -105,7 +101,7 @@ export const StoryCard = memo(function StoryCard({
             aria-haspopup="dialog"
             onClick={() => onOpenStory(story)}
           >
-            <h2 className="font-heading text-xl leading-snug font-semibold tracking-tight text-balance">
+            <h2 className="font-heading text-[1.375rem] leading-tight font-semibold tracking-tight text-balance">
               {title}
             </h2>
             {story.representative.excerpt ? (
@@ -120,18 +116,9 @@ export const StoryCard = memo(function StoryCard({
     );
   }
 
+  // Rows are text-first: at this size publisher art is unreadable noise, so only leads show it.
   return (
-    <article className="group/story flex gap-3.5 border-b border-border/70 py-3.5">
-      {/* The image repeats the title button's action, so it stays out of the tab order. */}
-      <button
-        type="button"
-        className="cursor-pointer self-start rounded-md border-0 bg-transparent p-0 outline-none"
-        aria-hidden
-        tabIndex={-1}
-        onClick={() => onOpenStory(story)}
-      >
-        {thumbnail}
-      </button>
+    <article className="group/story border-b border-border/60 py-3">
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <button
           type="button"
