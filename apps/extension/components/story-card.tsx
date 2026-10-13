@@ -122,7 +122,7 @@ export const StoryCard = memo(function StoryCard({
 
   // The thumbnail sits on the right so every headline starts on the same left edge.
   return (
-    <article className="group/story flex items-start gap-4 border-b border-border/60 py-3">
+    <article className="group/story flex items-start gap-4 border-b border-border/40 py-3">
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <button
           type="button"

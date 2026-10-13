@@ -508,7 +508,7 @@ export function App() {
                 ))}
               </div>
             ) : null}
-            <div className="grid grid-cols-1 gap-x-8 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-x-8 lg:grid-cols-2">
               {rowStories.map((story, index) => (
                 <StoryCard
                   key={story.id}
