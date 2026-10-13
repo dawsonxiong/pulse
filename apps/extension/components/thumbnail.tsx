@@ -9,8 +9,6 @@ type ThumbnailProps = {
   alt: string;
   fallbackLabel: string;
   priority?: boolean;
-  /** Frame classes; defaults to a full-width og-ratio header with a bottom border. */
-  className?: string;
 };
 
 // Most feed images are og cards (1200x630) or 16:9, so the frame matches og.
@@ -71,14 +69,13 @@ export function Thumbnail({
   alt,
   fallbackLabel,
   priority = false,
-  className = "aspect-[1200/630] w-full border-b border-border",
 }: ThumbnailProps) {
   const [failed, setFailed] = useState(!src);
   const [letterbox, setLetterbox] = useState(false);
   const showImage = Boolean(src) && !failed;
 
   return (
-    <div className={cn("relative overflow-hidden bg-muted", className)}>
+    <div className="relative aspect-[1200/630] w-full overflow-hidden border-b border-border bg-muted">
       {showImage ? (
         <>
           {letterbox && (

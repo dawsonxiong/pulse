@@ -371,11 +371,6 @@ export function App() {
   const sources = collectSources(taggedStories);
   const searching = query.trim().length > 0;
   const filtering = filtersActive(filters);
-  // Browsing the main feed opens with two large lead stories; searching, filtering,
-  // tag views and the reading list are for scanning, so they show rows only.
-  const showLeads = view === "feed" && !activeTag && !searching && !filtering;
-  const leadStories = showLeads ? visibleStories.slice(0, 2) : [];
-  const rowStories = showLeads ? visibleStories.slice(2) : visibleStories;
   const empty = emptyCopy(view, searching, filtering);
   const feedPending = settledFeedKey !== feedKey;
 
@@ -490,39 +485,19 @@ export function App() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="flex flex-col gap-1">
-            {leadStories.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6 border-b border-border/60 pb-6 lg:grid-cols-2 lg:gap-8">
-                {leadStories.map((story) => (
-                  <StoryCard
-                    key={story.id}
-                    story={story}
-                    variant="lead"
-                    bookmarked={bookmarkIds.has(story.id)}
-                    vote={voteMap.get(story.id) ?? null}
-                    priority
-                    onOpenStory={handleOpenStory}
-                    onToggleBookmark={handleToggleBookmark}
-                    onVote={handleVote}
-                  />
-                ))}
-              </div>
-            ) : null}
-            <div className="grid grid-cols-1 gap-x-8 lg:grid-cols-2">
-              {rowStories.map((story, index) => (
-                <StoryCard
-                  key={story.id}
-                  story={story}
-                  variant="row"
-                  priority={index < 8}
-                  bookmarked={bookmarkIds.has(story.id)}
-                  vote={voteMap.get(story.id) ?? null}
-                  onOpenStory={handleOpenStory}
-                  onToggleBookmark={handleToggleBookmark}
-                  onVote={handleVote}
-                />
-              ))}
-            </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {visibleStories.map((story, index) => (
+              <StoryCard
+                key={story.id}
+                story={story}
+                bookmarked={bookmarkIds.has(story.id)}
+                vote={voteMap.get(story.id) ?? null}
+                priority={index < 4}
+                onOpenStory={handleOpenStory}
+                onToggleBookmark={handleToggleBookmark}
+                onVote={handleVote}
+              />
+            ))}
           </div>
         )}
         {view === "feed" && (nextCursor || loadingMore || visibleStories.length > 0) ? (
