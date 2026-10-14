@@ -23,7 +23,7 @@ From the repo root. Secrets via `op run --account my.1password.com --env-file=.e
 | Generate Prisma client | `pnpm db:generate` |
 | Migrate (you apply) | `pnpm db:migrate` against `DIRECT_URL` |
 | Seed RSS sources | `pnpm db:seed` |
-| Generate the daily AI brief | `GET /api/cron/digest` with `Authorization: Bearer $CRON_SECRET` (daily on Vercel, after ingest; skips without `OPENAI_API_KEY`) |
+| Generate the daily AI brief | `GET /api/cron/digest` with `Authorization: Bearer $CRON_SECRET` (07:30 UTC after ingest, plus a 13:30 UTC retry that skips when a brief from the last 20h exists; add `?force=1` to regenerate anyway; skips without `OPENAI_API_KEY`) |
 | Refresh source icons | `GET /api/cron/icons` with `Authorization: Bearer $CRON_SECRET` (daily on Vercel) |
 
 ## Stack — do not swap without asking
