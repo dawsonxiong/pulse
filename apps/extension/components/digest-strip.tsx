@@ -47,7 +47,7 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
       onOpenChange={setOpen}
       className="rounded-xl border border-border bg-card/60 text-card-foreground"
     >
-      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-2 rounded-xl px-4 py-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+      <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-2 rounded-xl px-4 py-3.5 text-left data-[panel-open]:pb-3 outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
         <Sparkles className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         <span className="shrink-0 font-heading text-sm font-medium">Today's brief</span>
         {!open && first ? (
@@ -69,7 +69,7 @@ export function DigestStrip({ digest, seen, onSeen, onOpenStory }: DigestStripPr
           {/* CSS columns balance 3–5 bullets across two columns without leaving a hole. */}
           <ol className="gap-8 px-4 pb-1 md:columns-2">
             {digest.items.map((item, index) => (
-              <li key={item.text} className="mb-3 flex break-inside-avoid gap-3">
+              <li key={item.text} className="flex break-inside-avoid gap-3 pb-3">
                 <span
                   aria-hidden
                   className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary tabular-nums ring-2 ring-primary/30"
