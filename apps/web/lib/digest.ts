@@ -19,8 +19,13 @@ const EXCERPT_CHARS = 400;
 /** Two attempts at 120s each stay under the cron route's 300s maxDuration. */
 const OPENAI_TIMEOUT_MS = 120_000;
 const OPENAI_MAX_RETRIES = 1;
-/** A digest older than this is stale; the strip hides rather than show yesterday's news. */
-const DIGEST_MAX_AGE_MS = 36 * 60 * 60 * 1000;
+/**
+ * A brief older than this is stale; the strip hides rather than show old news.
+ * The daily run lands around 07:30–08:30 UTC, so 30h covers one late run.
+ */
+const DIGEST_MAX_AGE_MS = 30 * 60 * 60 * 1000;
+/** A run skips when a brief this fresh exists, so the afternoon retry only fills a missed day. */
+const DIGEST_FRESH_MS = 20 * 60 * 60 * 1000;
 
 const SYSTEM_PROMPT = `You write the daily brief at the top of Pulse, a developer news feed shown on every new tab.
 
@@ -82,9 +87,20 @@ export type GenerateDigestResult =
   | { status: "skipped"; reason: string }
   | { status: "created"; id: string; items: number };
 
-export async function generateDigest(now = new Date()): Promise<GenerateDigestResult> {
+export async function generateDigest(
+  now = new Date(),
+  { force = false }: { force?: boolean } = {},
+): Promise<GenerateDigestResult> {
   if (!process.env.OPENAI_API_KEY)
     return { status: "skipped", reason: "OPENAI_API_KEY is not set" };
+
+  if (!force) {
+    const fresh = await prisma.digest.findFirst({
+      where: { createdAt: { gte: new Date(now.getTime() - DIGEST_FRESH_MS) } },
+      select: { id: true },
+    });
+    if (fresh) return { status: "skipped", reason: "a brief from the last 20 hours exists" };
+  }
 
   const { stories } = await listFeed({ tags: [], sort: "for-you", cursor: null, now });
   const top = stories.slice(0, DIGEST_STORY_COUNT);
