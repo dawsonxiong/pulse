@@ -153,7 +153,7 @@ export function CommentsSection({
         submitLabel="Post"
         onSubmit={(body) => post(body, null)}
         footer={
-          <Field orientation="horizontal" className="w-auto gap-2">
+          <Field orientation="horizontal" className="w-auto items-center gap-2">
             <FieldLabel
               htmlFor="comment-name"
               className="text-xs font-normal text-muted-foreground"
@@ -168,7 +168,9 @@ export function CommentsSection({
               value={name}
               maxLength={40}
               placeholder="Anonymous"
-              className="h-7 w-36 text-xs"
+              // Sized to the name (field-sizing), and md:text-xs overrides the input's own
+              // md:text-sm so the name matches its label.
+              className="h-7 w-auto min-w-16 max-w-48 px-2 text-xs field-sizing-content md:text-xs"
               onChange={(event) => setName(event.target.value)}
             />
           </Field>

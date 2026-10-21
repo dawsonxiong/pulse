@@ -11,7 +11,9 @@ export async function GET(req: Request) {
   }
 
   try {
-    const result = await generateDigest();
+    // ?force=1 regenerates even when today's brief exists (manual runs).
+    const force = new URL(req.url).searchParams.get("force") === "1";
+    const result = await generateDigest(new Date(), { force });
     return json(req, result);
   } catch (err) {
     console.error(err);
