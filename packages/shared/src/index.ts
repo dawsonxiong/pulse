@@ -15,7 +15,13 @@ export {
   isShortUrlHost,
   SHORT_URL_HOSTS,
 } from "./originating-source";
-export { DIGEST_MAX_ITEMS, DIGEST_MAX_TEXT_LENGTH, sanitizeDigestItems } from "./digest";
+export {
+  DIGEST_MAX_CITATIONS,
+  DIGEST_MAX_ITEMS,
+  DIGEST_MAX_TEXT_LENGTH,
+  limitCitations,
+  sanitizeDigestItems,
+} from "./digest";
 export { fixtureStories } from "./fixtures";
 export { decodeFeedPost, decodeFeedStory, decodeHtmlEntities } from "./html-entities";
 export { usableStoryImage } from "./thumbnail";
