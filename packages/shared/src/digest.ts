@@ -28,3 +28,29 @@ export function sanitizeDigestItems(
   }
   return result;
 }
+
+export const DIGEST_MAX_CITATIONS = 3;
+
+/**
+ * Keeps a bullet's citations readable: at most one story per outlet (the
+ * first cited, which the model lists most relevant first) and at most
+ * `max` stories. `sourceOf` maps a story id to its outlet; unknown ids are dropped.
+ */
+export function limitCitations(
+  items: DigestItem[],
+  sourceOf: (storyId: string) => string | undefined,
+  max = DIGEST_MAX_CITATIONS,
+): DigestItem[] {
+  return items.map((item) => {
+    const seenSources = new Set<string>();
+    const storyIds: string[] = [];
+    for (const id of item.storyIds) {
+      const source = sourceOf(id);
+      if (!source || seenSources.has(source)) continue;
+      seenSources.add(source);
+      storyIds.push(id);
+      if (storyIds.length === max) break;
+    }
+    return { ...item, storyIds };
+  });
+}
